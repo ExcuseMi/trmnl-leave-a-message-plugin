@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leave a Message</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 16px;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .message {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      display: none;
+    }
+
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 12px;
+      color: #999;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📬 Leave a Message</h1>
+    <p class="subtitle">Your message will appear on the TRMNL display</p>
+
+    <form id="messageForm">
+      <div class="form-group">
+        <label for="message">Message *</label>
+        <textarea
+          id="message"
+          name="message"
+          required
+          maxlength="280"
+          placeholder="What's on your mind?"></textarea>
+        <div class="char-count"><span id="charCount">0</span>/280</div>
+      </div>
+
+      <div class="form-group">
+        <label for="author">Your Name (optional)</label>
+        <input
+          type="text"
+          id="author"
+          name="author"
+          maxlength="50"
+          placeholder="Anonymous">
+      </div>
+
+      <button type="submit" id="submitBtn">Send Message</button>
+    </form>
+
+    <div id="statusMessage" class="message"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('messageForm');
+    const messageInput = document.getElementById('message');
+    const authorInput = document.getElementById('author');
+    const submitBtn = document.getElementById('submitBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    const charCount = document.getElementById('charCount');
+
+    // UUID validation regex
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Get webhook URL from query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    let webhookParam = urlParams.get('webhook') || urlParams.get('url') || urlParams.get('plugin_id');
+
+    // Extract plugin ID from full URL or validate UUID
+    function extractPluginId(input) {
+      if (!input) return null;
+
+      // If it's a full TRMNL webhook URL, extract the UUID
+      const urlMatch = input.match(/usetrmnl\.com\/api\/custom_plugins\/([0-9a-f-]{36})/i);
+      if (urlMatch) {
+        return urlMatch[1];
+      }
+
+      // If it looks like a UUID, use it directly
+      if (UUID_REGEX.test(input)) {
+        return input;
+      }
+
+      return null;
+    }
+
+    const pluginId = extractPluginId(webhookParam);
+
+    // Character counter
+    messageInput.addEventListener('input', () => {
+      charCount.textContent = messageInput.value.length;
+    });
+
+    // Show status message
+    function showMessage(text, type) {
+      statusMessage.textContent = text;
+      statusMessage.className = `message ${type} show`;
+
+      if (type === 'success') {
+        setTimeout(() => {
+          statusMessage.classList.remove('show');
+        }, 5000);
+      }
+    }
+
+    // Handle form submission
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!pluginId) {
+        showMessage('Error: Invalid webhook URL or plugin ID. Please check the QR code.', 'error');
+        return;
+      }
+
+      const message = messageInput.value.trim();
+      const author = authorInput.value.trim() || 'Anonymous';
+
+      if (!message) {
+        showMessage('Please enter a message.', 'error');
+        return;
+      }
+
+      // Disable button during submission
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+
+      try {
+        const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${pluginId}/webhook`;
+
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tag: 'message',
+            quotes: [{
+              text: message,
+              author: author
+            }]
+          })
+        });
+
+        if (response.ok) {
+          showMessage('✓ Message sent successfully!', 'success');
+          form.reset();
+          charCount.textContent = '0';
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } catch (error) {
+        showMessage(`Failed to send message: ${error.message}`, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Message';
+      }
+    });
+
+    // Show validation error on page load
+    if (!pluginId && webhookParam) {
+      showMessage('⚠ Invalid plugin ID or webhook URL format. Expected UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'error');
+    } else if (!pluginId) {
+      showMessage('⚠ No webhook URL detected. Please scan the QR code to access this form.', 'error');
+    }
+  </script>
+</body>
+</html>
