@@ -233,10 +233,42 @@
       debugInfo.style.display = 'block';
     }
 
+    // Load saved author name from localStorage
+    function loadSavedAuthor() {
+      try {
+        const savedAuthor = localStorage.getItem('messageAuthor');
+        if (savedAuthor) {
+          authorInput.value = savedAuthor;
+        }
+      } catch (error) {
+        console.warn('Could not load saved author from localStorage:', error);
+      }
+    }
+
+    // Save author name to localStorage
+    function saveAuthor() {
+      try {
+        const authorValue = authorInput.value.trim();
+        if (authorValue) {
+          localStorage.setItem('messageAuthor', authorValue);
+        } else {
+          localStorage.removeItem('messageAuthor');
+        }
+      } catch (error) {
+        console.warn('Could not save author to localStorage:', error);
+      }
+    }
+
     // Character counter
     messageInput.addEventListener('input', () => {
       charCount.textContent = messageInput.value.length;
     });
+
+    // Save author when user types
+    authorInput.addEventListener('input', saveAuthor);
+
+    // Load saved author when page loads
+    document.addEventListener('DOMContentLoaded', loadSavedAuthor);
 
     // Show status message
     function showMessage(text, type) {
@@ -267,6 +299,9 @@
         showMessage('Please enter a message.', 'error');
         return;
       }
+
+      // Save author name one more time before submission
+      saveAuthor();
 
       // Disable button during submission
       submitBtn.disabled = true;
@@ -305,6 +340,8 @@
           showMessage('✓ Message sent successfully!', 'success');
           form.reset();
           charCount.textContent = '0';
+          // Reload the saved author after form reset
+          loadSavedAuthor();
         } else {
           const errorText = await response.text();
           console.error('Error response:', errorText);
@@ -325,6 +362,9 @@
     } else if (!pluginId) {
       showMessage('⚠ No webhook URL detected. Please scan the QR code to access this form.', 'error');
     }
+
+    // Initialize the page
+    loadSavedAuthor();
   </script>
 </body>
 </html>
