@@ -242,7 +242,7 @@
       submitBtn.textContent = 'Sending...';
 
       try {
-        const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${pluginId}/webhook`;
+        const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${pluginId}`;
 
         const response = await fetch(webhookUrl, {
           method: 'POST',
@@ -250,11 +250,13 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            tag: 'message',
-            quotes: [{
-              text: message,
-              author: author
-            }]
+            merge_variables: {
+              tag: 'message',
+              quotes: [{
+                text: message,
+                author: author
+              }]
+            }
           })
         });
 
