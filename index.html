@@ -133,6 +133,15 @@
       color: #999;
       margin-top: 4px;
     }
+
+    .debug {
+      margin-top: 10px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+    }
   </style>
 </head>
 <body>
@@ -159,22 +168,37 @@
           id="author"
           name="author"
           maxlength="50"
-          placeholder="Anonymous">
+          placeholder="Leave blank for anonymous">
+      </div>
+
+      <div class="form-group">
+        <label for="imageUrl">Image URL (optional)</label>
+        <input
+          type="url"
+          id="imageUrl"
+          name="imageUrl"
+          placeholder="https://example.com/image.jpg">
+        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+          Add a link to an image to display with your message
+        </div>
       </div>
 
       <button type="submit" id="submitBtn">Send Message</button>
     </form>
 
     <div id="statusMessage" class="message"></div>
+    <div id="debugInfo" class="debug" style="display: none;"></div>
   </div>
 
   <script>
     const form = document.getElementById('messageForm');
     const messageInput = document.getElementById('message');
     const authorInput = document.getElementById('author');
+    const imageUrlInput = document.getElementById('imageUrl');
     const submitBtn = document.getElementById('submitBtn');
     const statusMessage = document.getElementById('statusMessage');
     const charCount = document.getElementById('charCount');
+    const debugInfo = document.getElementById('debugInfo');
 
     // UUID validation regex
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -203,6 +227,12 @@
 
     const pluginId = extractPluginId(webhookParam);
 
+    // Show debug info
+    if (pluginId) {
+      debugInfo.textContent = `Plugin ID: ${pluginId}`;
+      debugInfo.style.display = 'block';
+    }
+
     // Character counter
     messageInput.addEventListener('input', () => {
       charCount.textContent = messageInput.value.length;
@@ -229,10 +259,11 @@
         return;
       }
 
-      const message = messageInput.value.trim();
-      const author = authorInput.value.trim() || 'Anonymous';
+      const messageText = messageInput.value.trim();
+      const authorText = authorInput.value.trim();
+      const imageUrl = imageUrlInput.value.trim();
 
-      if (!message) {
+      if (!messageText) {
         showMessage('Please enter a message.', 'error');
         return;
       }
@@ -241,33 +272,46 @@
       submitBtn.disabled = true;
       submitBtn.textContent = 'Sending...';
 
-      try {
-        const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${pluginId}`;
+      // Build webhook URL - NO /webhook suffix!
+      const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${pluginId}`;
 
+      // Get current UTC timestamp
+      const timestampUtc = new Date().toISOString();
+
+      const payload = {
+        merge_variables: {
+          message: messageText,
+          image_url: imageUrl,
+          author: authorText,
+          timestamp_utc: timestampUtc
+        }
+      };
+
+      console.log('Sending to:', webhookUrl);
+      console.log('Payload:', payload);
+
+      try {
         const response = await fetch(webhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            merge_variables: {
-              tag: 'message',
-              quotes: [{
-                text: message,
-                author: author
-              }]
-            }
-          })
+          body: JSON.stringify(payload)
         });
+
+        console.log('Response status:', response.status);
 
         if (response.ok) {
           showMessage('✓ Message sent successfully!', 'success');
           form.reset();
           charCount.textContent = '0';
         } else {
-          throw new Error(`HTTP ${response.status}`);
+          const errorText = await response.text();
+          console.error('Error response:', errorText);
+          throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
       } catch (error) {
+        console.error('Full error:', error);
         showMessage(`Failed to send message: ${error.message}`, 'error');
       } finally {
         submitBtn.disabled = false;
