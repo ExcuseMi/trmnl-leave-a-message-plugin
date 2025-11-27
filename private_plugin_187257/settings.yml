@@ -1,0 +1,40 @@
+---
+strategy: webhook
+no_screen_padding: 'no'
+dark_mode: 'no'
+static_data: ''
+polling_verb: get
+polling_url: ''
+polling_headers: ''
+polling_body: ''
+id: 187257
+custom_fields:
+- keyname: webhook_url
+  name: Plugin ID / Webhook URL
+  field_type: string
+  description: The <b>Plugin ID</b> or the <b>Webhook URL</b> of this plugin instance.
+- keyname: expiry_hours
+  field_type: number
+  name: Message Expiry (hours)
+  placeholder: '24'
+  help_text: Messages older than this will be cleared (e.g., 1, 6, 24, 168)
+- keyname: show_qr_code
+  field_type: select
+  name: Show QR Code
+  options:
+  - Show
+  - Hide
+  default: show
+  conditional_validation:
+  - when: hide
+    hidden:
+    - custom_scan_message
+- keyname: custom_scan_message
+  field_type: text
+  name: Custom scan message
+  description: Override the default scan message
+  placeholder: "**SCAN** TO\r\n\r\nLEAVE A\r\n\r\n**MESSAGE**"
+  help_text: Supports Markdown
+  default: "**SCAN** TO\r\n\r\nLEAVE A\r\n\r\n**MESSAGE**"
+name: Leave a message
+refresh_interval: 1440

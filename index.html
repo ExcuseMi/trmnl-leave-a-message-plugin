@@ -123,6 +123,12 @@
       border: 1px solid #f5c6cb;
     }
 
+    .message.warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+
     .message.show {
       display: block;
     }
@@ -142,27 +148,101 @@
       font-size: 12px;
       font-family: monospace;
     }
+
+    .validation {
+      font-size: 12px;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .validation.error {
+      color: #e74c3c;
+      display: block;
+    }
+
+    .validation.success {
+      color: #27ae60;
+      display: block;
+    }
+
+    .image-preview {
+      margin-top: 10px;
+      display: none;
+      max-width: 100%;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .image-preview img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .image-preview.show {
+      display: block;
+    }
+
+    .image-loading {
+      display: none;
+      text-align: center;
+      padding: 10px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .image-loading.show {
+      display: block;
+    }
+
+    .optional-label {
+      color: #999;
+      font-weight: normal;
+    }
+
+    .rate-limit-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .countdown {
+      font-weight: bold;
+      color: #e74c3c;
+    }
+
+    .plugin-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .plugin-source {
+      color: #667eea;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>📬 Leave a Message</h1>
-    <p class="subtitle">Your message will appear on the TRMNL display</p>
+    <p class="subtitle">Your message or image will appear on the TRMNL display</p>
 
     <form id="messageForm">
       <div class="form-group">
-        <label for="message">Message *</label>
+        <label for="message">Message <span class="optional-label">(optional if sending an image)</span></label>
         <textarea
           id="message"
           name="message"
-          required
           maxlength="280"
           placeholder="What's on your mind?"></textarea>
         <div class="char-count"><span id="charCount">0</span>/280</div>
       </div>
 
       <div class="form-group">
-        <label for="author">Your Name (optional)</label>
+        <label for="author">Your Name <span class="optional-label">(optional)</span></label>
         <input
           type="text"
           id="author"
@@ -172,18 +252,22 @@
       </div>
 
       <div class="form-group">
-        <label for="imageUrl">Image URL (optional)</label>
+        <label for="imageUrl">Image URL <span class="optional-label">(optional if sending a message)</span></label>
         <input
           type="url"
           id="imageUrl"
           name="imageUrl"
           placeholder="https://example.com/image.jpg">
+        <div class="validation" id="imageValidation"></div>
+        <div class="image-loading" id="imageLoading">Checking image...</div>
+        <div class="image-preview" id="imagePreview"></div>
         <div style="font-size: 12px; color: #666; margin-top: 4px;">
           Add a link to an image to display with your message
         </div>
       </div>
 
       <button type="submit" id="submitBtn">Send Message</button>
+      <div class="rate-limit-info" id="rateLimitInfo"></div>
     </form>
 
     <div id="statusMessage" class="message"></div>
@@ -199,6 +283,17 @@
     const statusMessage = document.getElementById('statusMessage');
     const charCount = document.getElementById('charCount');
     const debugInfo = document.getElementById('debugInfo');
+    const imageValidation = document.getElementById('imageValidation');
+    const imagePreview = document.getElementById('imagePreview');
+    const imageLoading = document.getElementById('imageLoading');
+    const rateLimitInfo = document.getElementById('rateLimitInfo');
+
+    // Constants
+    const RATE_LIMIT_MINUTES = 5;
+    const RATE_LIMIT_MS = RATE_LIMIT_MINUTES * 60 * 1000;
+    const AUTHOR_STORAGE_KEY = 'message_author';
+    const LAST_SUBMISSION_KEY = 'last_message_submission';
+    const PLUGIN_ID_STORAGE_KEY = 'plugin_id';
 
     // UUID validation regex
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -225,38 +320,129 @@
       return null;
     }
 
-    const pluginId = extractPluginId(webhookParam);
+    // Get plugin ID with fallback to localStorage
+    function getPluginId() {
+      let pluginId = null;
+      let source = 'none';
 
-    // Show debug info
-    if (pluginId) {
-      debugInfo.textContent = `Plugin ID: ${pluginId}`;
-      debugInfo.style.display = 'block';
+      // First priority: URL parameter
+      if (webhookParam) {
+        pluginId = extractPluginId(webhookParam);
+        if (pluginId) {
+          source = 'url';
+          // Save to localStorage when provided via URL
+          localStorage.setItem(PLUGIN_ID_STORAGE_KEY, pluginId);
+        }
+      }
+
+      // Second priority: localStorage
+      if (!pluginId) {
+        const storedPluginId = localStorage.getItem(PLUGIN_ID_STORAGE_KEY);
+        if (storedPluginId && UUID_REGEX.test(storedPluginId)) {
+          pluginId = storedPluginId;
+          source = 'localStorage';
+        }
+      }
+
+      return { pluginId, source };
     }
 
-    // Load saved author name from localStorage
-    function loadSavedAuthor() {
-      try {
-        const savedAuthor = localStorage.getItem('messageAuthor');
-        if (savedAuthor) {
-          authorInput.value = savedAuthor;
+    const { pluginId, source } = getPluginId();
+
+    // Initialize the form
+    function initializeForm() {
+      // Load saved author from localStorage
+      const savedAuthor = localStorage.getItem(AUTHOR_STORAGE_KEY);
+      if (savedAuthor) {
+        authorInput.value = savedAuthor;
+      }
+
+      // Check rate limiting
+      checkRateLimit();
+
+      // Show debug info
+      if (pluginId) {
+        let sourceText = '';
+        switch (source) {
+          case 'url':
+            sourceText = 'URL parameter (saved to localStorage)';
+            break;
+          case 'localStorage':
+            sourceText = 'localStorage';
+            break;
+          default:
+            sourceText = 'unknown';
         }
-      } catch (error) {
-        console.warn('Could not load saved author from localStorage:', error);
+
+        debugInfo.innerHTML = `
+          Plugin ID: ${pluginId}<br>
+          Source: <span class="plugin-source">${sourceText}</span>
+        `;
+        debugInfo.style.display = 'block';
+      }
+
+      // Show validation error on page load
+      if (!pluginId && webhookParam) {
+        showMessage('⚠ Invalid plugin ID or webhook URL format. Expected UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'error');
+      } else if (!pluginId) {
+        showMessage('⚠ No webhook URL detected. Please scan the QR code to access this form.', 'error');
+      } else if (source === 'localStorage') {
+        showMessage('✓ Using saved plugin ID from previous session', 'success');
+        setTimeout(() => {
+          statusMessage.classList.remove('show');
+        }, 3000);
       }
     }
 
-    // Save author name to localStorage
-    function saveAuthor() {
-      try {
-        const authorValue = authorInput.value.trim();
-        if (authorValue) {
-          localStorage.setItem('messageAuthor', authorValue);
-        } else {
-          localStorage.removeItem('messageAuthor');
-        }
-      } catch (error) {
-        console.warn('Could not save author to localStorage:', error);
+    // Check rate limiting and update UI
+    function checkRateLimit() {
+      const lastSubmission = localStorage.getItem(LAST_SUBMISSION_KEY);
+
+      if (!lastSubmission) {
+        // No previous submission, allow sending
+        submitBtn.disabled = false;
+        rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+        return true;
       }
+
+      const timeSinceLastSubmission = Date.now() - parseInt(lastSubmission);
+
+      if (timeSinceLastSubmission < RATE_LIMIT_MS) {
+        // Rate limited - calculate remaining time
+        const remainingTime = RATE_LIMIT_MS - timeSinceLastSubmission;
+        const remainingMinutes = Math.ceil(remainingTime / (60 * 1000));
+        const remainingSeconds = Math.ceil((remainingTime % (60 * 1000)) / 1000);
+
+        submitBtn.disabled = true;
+        rateLimitInfo.innerHTML = `Please wait <span class="countdown">${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}</span> before sending another message`;
+
+        // Update countdown every second
+        const countdownInterval = setInterval(() => {
+          const newRemainingTime = RATE_LIMIT_MS - (Date.now() - parseInt(lastSubmission));
+
+          if (newRemainingTime <= 0) {
+            clearInterval(countdownInterval);
+            submitBtn.disabled = false;
+            rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+          } else {
+            const newRemainingMinutes = Math.floor(newRemainingTime / (60 * 1000));
+            const newRemainingSeconds = Math.ceil((newRemainingTime % (60 * 1000)) / 1000);
+            rateLimitInfo.innerHTML = `Please wait <span class="countdown">${newRemainingMinutes}:${newRemainingSeconds.toString().padStart(2, '0')}</span> before sending another message`;
+          }
+        }, 1000);
+
+        return false;
+      } else {
+        // Rate limit expired, allow sending
+        submitBtn.disabled = false;
+        rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+        return true;
+      }
+    }
+
+    // Save last submission timestamp
+    function saveLastSubmission() {
+      localStorage.setItem(LAST_SUBMISSION_KEY, Date.now().toString());
     }
 
     // Character counter
@@ -264,11 +450,84 @@
       charCount.textContent = messageInput.value.length;
     });
 
-    // Save author when user types
-    authorInput.addEventListener('input', saveAuthor);
+    // Save author to localStorage when changed
+    authorInput.addEventListener('input', () => {
+      const authorValue = authorInput.value.trim();
+      if (authorValue) {
+        localStorage.setItem(AUTHOR_STORAGE_KEY, authorValue);
+      } else {
+        localStorage.removeItem(AUTHOR_STORAGE_KEY);
+      }
+    });
 
-    // Load saved author when page loads
-    document.addEventListener('DOMContentLoaded', loadSavedAuthor);
+    // Image URL validation and preview
+    let imageValidationTimeout;
+    imageUrlInput.addEventListener('input', () => {
+      clearTimeout(imageValidationTimeout);
+
+      const url = imageUrlInput.value.trim();
+
+      // Reset validation and preview
+      imageValidation.className = 'validation';
+      imagePreview.className = 'image-preview';
+      imageLoading.className = 'image-loading';
+      imagePreview.innerHTML = '';
+
+      if (!url) {
+        return;
+      }
+
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch (e) {
+        imageValidation.textContent = 'Please enter a valid URL';
+        imageValidation.className = 'validation error';
+        return;
+      }
+
+      // Check if URL points to an image
+      const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+      const isImageUrl = imageExtensions.some(ext =>
+        url.toLowerCase().includes(ext)
+      );
+
+      if (!isImageUrl) {
+        imageValidation.textContent = 'URL does not appear to point to an image';
+        imageValidation.className = 'validation error';
+        return;
+      }
+
+      // Validate image by loading it
+      imageValidationTimeout = setTimeout(() => {
+        validateImageUrl(url);
+      }, 500);
+    });
+
+    // Function to validate image URL by attempting to load it
+    function validateImageUrl(url) {
+      imageLoading.className = 'image-loading show';
+      imagePreview.className = 'image-preview';
+
+      const img = new Image();
+      img.onload = function() {
+        imageLoading.className = 'image-loading';
+        imageValidation.textContent = '✓ Valid image URL';
+        imageValidation.className = 'validation success';
+
+        // Show preview
+        imagePreview.innerHTML = `<img src="${url}" alt="Image preview">`;
+        imagePreview.className = 'image-preview show';
+      };
+
+      img.onerror = function() {
+        imageLoading.className = 'image-loading';
+        imageValidation.textContent = 'Image could not be loaded. Please check the URL.';
+        imageValidation.className = 'validation error';
+      };
+
+      img.src = url;
+    }
 
     // Show status message
     function showMessage(text, type) {
@@ -287,7 +546,13 @@
       e.preventDefault();
 
       if (!pluginId) {
-        showMessage('Error: Invalid webhook URL or plugin ID. Please check the QR code.', 'error');
+        showMessage('Error: No plugin ID available. Please scan the QR code to access this form.', 'error');
+        return;
+      }
+
+      // Check rate limiting before submission
+      if (!checkRateLimit()) {
+        showMessage('Please wait before sending another message.', 'warning');
         return;
       }
 
@@ -295,13 +560,21 @@
       const authorText = authorInput.value.trim();
       const imageUrl = imageUrlInput.value.trim();
 
-      if (!messageText) {
-        showMessage('Please enter a message.', 'error');
+      // Check if at least one of message or image is provided
+      if (!messageText && !imageUrl) {
+        showMessage('Please enter either a message or an image URL.', 'error');
         return;
       }
 
-      // Save author name one more time before submission
-      saveAuthor();
+      // If an image URL is provided, validate it again before submission
+      if (imageUrl) {
+        try {
+          new URL(imageUrl);
+        } catch (e) {
+          showMessage('Please enter a valid image URL.', 'error');
+          return;
+        }
+      }
 
       // Disable button during submission
       submitBtn.disabled = true;
@@ -338,10 +611,20 @@
 
         if (response.ok) {
           showMessage('✓ Message sent successfully!', 'success');
-          form.reset();
+          // Save submission timestamp for rate limiting
+          saveLastSubmission();
+          // Update rate limit UI
+          checkRateLimit();
+
+          // Clear form but keep author
+          messageInput.value = '';
+          imageUrlInput.value = '';
           charCount.textContent = '0';
-          // Reload the saved author after form reset
-          loadSavedAuthor();
+
+          // Reset image preview and validation
+          imageValidation.className = 'validation';
+          imagePreview.className = 'image-preview';
+          imagePreview.innerHTML = '';
         } else {
           const errorText = await response.text();
           console.error('Error response:', errorText);
@@ -356,15 +639,8 @@
       }
     });
 
-    // Show validation error on page load
-    if (!pluginId && webhookParam) {
-      showMessage('⚠ Invalid plugin ID or webhook URL format. Expected UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'error');
-    } else if (!pluginId) {
-      showMessage('⚠ No webhook URL detected. Please scan the QR code to access this form.', 'error');
-    }
-
-    // Initialize the page
-    loadSavedAuthor();
+    // Initialize the form when page loads
+    document.addEventListener('DOMContentLoaded', initializeForm);
   </script>
 </body>
 </html>

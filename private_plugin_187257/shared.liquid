@@ -1,0 +1,159 @@
+{% liquid 
+assign webhook_url = trmnl.plugin_settings.custom_fields_values.webhook_url
+assign expiry_hours = trmnl.plugin_settings.custom_fields_values.expiry_hours | default: 24
+assign scan_message = trmnl.plugin_settings.custom_fields_values.custom_scan_message
+assign show_qr_code = trmnl.plugin_settings.custom_fields_values.show_qr_code | default: "show"
+
+# Extract and validate plugin UUID
+# Check if webhook_url contains the full TRMNL webhook URL pattern
+# Or if it's just a UUID
+
+assign plugin_uuid = ""
+assign is_valid = false
+
+if webhook_url contains "usetrmnl.com/api/custom_plugins/"
+  assign url_parts = webhook_url | split: "custom_plugins/"
+  assign uuid_with_suffix = url_parts[1]
+  assign uuid_parts = uuid_with_suffix | split: "/"
+  assign plugin_uuid = uuid_parts[0]
+  assign is_valid = true
+elsif webhook_url contains "-"
+  # Simple UUID format check: contains hyphens and is roughly the right length
+  assign uuid_length = webhook_url | size
+  if uuid_length == 36
+    assign plugin_uuid = webhook_url
+    assign is_valid = true
+  endif
+endif
+
+# Check if message has expired
+assign message_expired = false
+if timestamp_utc != blank and expiry_hours != blank
+  assign now_timestamp = "now" | date: "%s" | times: 1
+  assign message_timestamp = timestamp_utc | date: "%s" | times: 1
+  assign expiry_seconds = expiry_hours | times: 3600
+  assign time_diff = now_timestamp | minus: message_timestamp
+  if time_diff > expiry_seconds
+    assign message_expired = true
+  endif
+endif
+
+assign github_form_url = "https://excusemi.github.io/trmnl-leave-a-message-plugin/?plugin_id="
+assign full_qr_url = github_form_url | append: plugin_uuid
+%}
+<style>
+.message-image {
+  object-fit: contain;
+  border-radius: 8px;
+  max-width: 100%;
+}
+.image-horizontal {
+  max-height: 100%;
+  max-width: 50%;
+}
+.image-vertical {
+  max-height: 60%;
+}
+.qr-corner {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+</style>
+
+{% if is_valid %}
+<div class="layout layout--fill layout--center">
+  {% if message_expired %}
+  <div class="layout layout--col layout--center gap-10">
+    <div class="description text--center text--gray-50">
+      Message expired
+    </div>
+    <div class="description text--xs text--center text--gray-50">
+      (Messages expire after {{ expiry_hours }} hours)
+    </div>
+  </div>
+  {% elsif image_url != blank %}
+  <div class="layout layout--row layout--center gap-20" id="messageContainer">
+    <img class="image image-dither rounded" src="{{ image_url }}" alt="Message image" class="message-image" id="messageImage" onload="layoutImage()" />
+    <div class="layout layout--col layout--center gap-10 flex--1">
+      <div class="content text--center">
+        {% if message %}
+
+        <span data-content-limiter="">{{ message | markdown_to_html }}</span>
+        {% else %}
+        <span class="description">No messages yet.</span>
+        {% endif %}
+      </div>
+      {% if author != blank %}
+      <div class="description text--right">
+        <span class="author-dash">—</span> {{ author }}
+      </div>
+      {% endif %}
+      {% if timestamp_utc != blank %}
+      <div class="description text--center text--gray-50">
+        {{ timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%d %b %Y, %H:%M" }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="layout layout--col layout--center gap-10 pb--20">
+    <div class="content text--center">
+      {% if message and message_expired == false %}
+      <span data-content-limiter="true">{{ message | markdown_to_html }}</span>
+      {% else %}
+      <span class="description">No messages yet.</span>
+      {% endif %}
+    </div>
+    {% if author != blank %}
+    <div class="description text--right">
+      <span class="author-dash">—</span> {{ author }}
+    </div>
+    {% endif %}
+    {% if timestamp_utc != blank %}
+    <div class="description text--center text--gray-50">
+      {{ timestamp_utc | l_date: "%d %b %Y, %H:%M", locale }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if show_qr_code == "show" %}
+  <div class="qr-corner">
+    <div class="text text--right">{{ scan_message | markdown_to_html }}</div>
+    {{ full_qr_url | qr_code: 2, 'm'}}
+  </div>
+  {% endif %}
+</div>
+
+
+{% else %}
+<div class="layout layout--col layout--center gap-20 p-20">
+  <div class="layout layout--col gap-10 p-20 rounded-8">
+    <div class="title">⚠️ Configuration Required</div>
+    <div class="description">
+      Please provide a valid webhook URL in the plugin settings.
+    </div>
+    <div class="description text--sm">
+      <strong>Expected format:</strong><br>
+      • Full URL: <code>https://usetrmnl.com/api/custom_plugins/YOUR-UUID</code><br>
+      • Or just UUID: <code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code>
+    </div>
+    {% if webhook_url != blank %}
+    <div class="description text--sm">
+      <strong>Current value:</strong> <code>{{ webhook_url }}</code><br>
+      (This doesn't appear to be a valid UUID or webhook URL)
+    </div>
+    {% else %}
+    <div class="description text--sm">
+      The webhook_url field is empty.
+    </div>
+    {% endif %}
+  </div>
+</div>
+<div class="title_bar">
+  <span class="title">⚠️ Setup Required</span>
+</div>
+{% endif %}

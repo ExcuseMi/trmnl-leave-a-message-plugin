@@ -1,0 +1,13 @@
+<script>
+  function layoutImage() {
+    const img = document.getElementById('messageImage');
+    const container = document.getElementById('messageContainer');
+    if (img && container) {
+      const aspectRatio = img.naturalWidth / img.naturalHeight;
+        // Horizontal/landscape image
+        img.classList.add('image-horizontal');
+        container.classList.remove('layout--col');
+        container.classList.add('layout--row');
+    }
+  }
+</script>
