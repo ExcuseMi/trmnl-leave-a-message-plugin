@@ -402,7 +402,7 @@
       background: #f0f4ff;
       color: #667eea;
     }
-
+  </style>
 </head>
 <body>
   <div class="container">
@@ -861,29 +861,31 @@
   }
 
   // Initialize image picker
-  renderImageGrid(imageLibrary);
+  function initializeImagePicker() {
+    renderImageGrid(imageLibrary);
 
-  // Search functionality
-  imageSearch.addEventListener('input', (e) => {
-    const searchTerm = e.target.value.trim();
-    const filteredImages = filterImages(searchTerm);
-    renderImageGrid(filteredImages);
-  });
+    // Search functionality
+    imageSearch.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.trim();
+      const filteredImages = filterImages(searchTerm);
+      renderImageGrid(filteredImages);
+    });
 
-  // Toggle picker visibility
-  togglePicker.addEventListener('click', () => {
-    pickerVisible = !pickerVisible;
+    // Toggle picker visibility
+    togglePicker.addEventListener('click', () => {
+      pickerVisible = !pickerVisible;
 
-    if (pickerVisible) {
-      imageGrid.style.display = 'grid';
-      imageSearch.style.display = 'block';
-      togglePicker.textContent = 'Hide';
-    } else {
-      imageGrid.style.display = 'none';
-      imageSearch.style.display = 'none';
-      togglePicker.textContent = 'Show';
-    }
-  });
+      if (pickerVisible) {
+        imageGrid.style.display = 'grid';
+        imageSearch.style.display = 'block';
+        togglePicker.textContent = 'Hide';
+      } else {
+        imageGrid.style.display = 'none';
+        imageSearch.style.display = 'none';
+        togglePicker.textContent = 'Show';
+      }
+    });
+  }
 
   function showMessage(text, type) {
     statusMessage.textContent = text;
@@ -1080,6 +1082,9 @@
         statusMessage.classList.remove('show');
       }, 3000);
     }
+
+    // Initialize image picker
+    initializeImagePicker();
   }
 
   function handleInvalidConfig() {
