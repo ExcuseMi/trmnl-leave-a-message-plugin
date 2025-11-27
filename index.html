@@ -94,7 +94,7 @@
       margin-left: 2px;
     }
 
-    input, textarea {
+    input, textarea, select {
       width: 100%;
       padding: 12px;
       border: 2px solid #e0e0e0;
@@ -104,7 +104,7 @@
       transition: border-color 0.3s;
     }
 
-    input:focus, textarea:focus {
+    input:focus, textarea:focus, select:focus {
       outline: none;
       border-color: #667eea;
     }
@@ -116,6 +116,11 @@
     textarea {
       resize: vertical;
       min-height: 120px;
+    }
+
+    select {
+      cursor: pointer;
+      background: white;
     }
 
     button {
@@ -261,7 +266,143 @@
       color: #667eea;
       font-weight: 500;
     }
-  </style>
+
+    .image-picker-container {
+      margin-top: 15px;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 15px;
+    }
+
+    .image-picker-header {
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .image-search {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    .image-search:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .image-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 5px;
+    }
+
+    .image-option {
+      aspect-ratio: 1;
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .image-option:hover {
+      transform: scale(1.05);
+      border-color: #667eea;
+    }
+
+    .image-option.selected {
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+    }
+
+    .image-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .image-option-check {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: #667eea;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .image-option.selected .image-option-check {
+      display: flex;
+    }
+
+    .toggle-picker {
+      background: none;
+      border: none;
+      color: #667eea;
+      cursor: pointer;
+      font-size: 13px;
+      padding: 4px 8px;
+      text-decoration: underline;
+      width: auto;
+    }
+
+    .toggle-picker:hover {
+      color: #764ba2;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 20px;
+      color: #999;
+      font-size: 14px;
+    }
+
+    .mode-selector {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .mode-button {
+      flex: 1;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      background: white;
+      cursor: pointer;
+      text-align: center;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .mode-button:hover {
+      border-color: #667eea;
+    }
+
+    .mode-button.active {
+      border-color: #667eea;
+      background: #f0f4ff;
+      color: #667eea;
+    }
+
 </head>
 <body>
   <div class="container">
@@ -274,47 +415,86 @@
     </div>
 
     <form id="messageForm">
-      <div class="form-group">
-        <label for="message">
-          Message
-          <span class="optional-label" id="messageOptionalLabel">(optional if sending an image)</span>
-          <span class="required-asterisk" id="messageRequiredLabel" style="display: none;">*</span>
-        </label>
-        <textarea
-          id="message"
-          name="message"
-          maxlength="280"
-          placeholder="What's on your mind?"></textarea>
-        <div class="char-count"><span id="charCount">0</span>/280</div>
-        <div class="char-count"><span id="charCount">0</span></div>
+      <!-- Mode Selector -->
+      <div class="mode-selector">
+        <button type="button" class="mode-button active" data-mode="message">💬 Message</button>
+        <button type="button" class="mode-button" data-mode="image">🖼️ Image</button>
       </div>
 
-      <div class="form-group">
-        <label for="author">
-          Your Name
-          <span class="optional-label" id="authorOptionalLabel">(optional)</span>
-          <span class="required-asterisk" id="authorRequiredLabel" style="display: none;">*</span>
-        </label>
-        <input
-          type="text"
-          id="author"
-          name="author"
-          maxlength="50"
-          placeholder="Leave blank for anonymous">
+      <!-- Message Mode -->
+      <div id="messageMode" class="mode-content">
+        <div class="form-group">
+          <label for="message">
+            Message
+            <span class="optional-label" id="messageOptionalLabel">(optional if sending an image)</span>
+            <span class="required-asterisk" id="messageRequiredLabel" style="display: none;">*</span>
+          </label>
+          <textarea
+            id="message"
+            name="message"
+            maxlength="280"
+            placeholder="What's on your mind?"></textarea>
+          <div class="char-count"><span id="charCount">0/280</span></div>
+        </div>
+
+        <div class="form-group">
+          <label for="author">
+            Your Name
+            <span class="optional-label" id="authorOptionalLabel">(optional)</span>
+            <span class="required-asterisk" id="authorRequiredLabel" style="display: none;">*</span>
+          </label>
+          <input
+            type="text"
+            id="author"
+            name="author"
+            maxlength="50"
+            placeholder="Leave blank for anonymous">
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="imageUrl">Image URL <span class="optional-label">(optional if sending a message)</span></label>
-        <input
-          type="url"
-          id="imageUrl"
-          name="imageUrl"
-          placeholder="https://example.com/image.jpg">
-        <div class="validation" id="imageValidation"></div>
-        <div class="image-loading" id="imageLoading">Checking image...</div>
-        <div class="image-preview" id="imagePreview"></div>
-        <div style="font-size: 12px; color: #666; margin-top: 4px;">
-          Add a link to an image to display with your message
+      <!-- Image Mode -->
+      <div id="imageMode" class="mode-content" style="display: none;">
+        <div class="form-group">
+          <label for="imageUrl">Image URL <span class="required-asterisk">*</span></label>
+          <input
+            type="url"
+            id="imageUrl"
+            name="imageUrl"
+            placeholder="https://example.com/image.jpg">
+          <div class="validation" id="imageValidation"></div>
+          <div class="image-loading" id="imageLoading">Checking image...</div>
+          <div class="image-preview" id="imagePreview"></div>
+          <div style="font-size: 12px; color: #666; margin-top: 4px;">
+            Add a link to an image to display with your message
+          </div>
+
+          <!-- Image Picker -->
+          <div class="image-picker-container" id="imagePicker">
+            <div class="image-picker-header">
+              <span>Or choose an image:</span>
+              <button type="button" class="toggle-picker" id="togglePicker">Hide</button>
+            </div>
+            <input
+              type="text"
+              class="image-search"
+              id="imageSearch"
+              placeholder="Search images (e.g., nature, art, abstract...)">
+            <div class="image-grid" id="imageGrid"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="authorImage">
+            Your Name
+            <span class="optional-label" id="authorImageOptionalLabel">(optional)</span>
+            <span class="required-asterisk" id="authorImageRequiredLabel" style="display: none;">*</span>
+          </label>
+          <input
+            type="text"
+            id="authorImage"
+            name="authorImage"
+            maxlength="50"
+            placeholder="Leave blank for anonymous">
         </div>
       </div>
 
@@ -326,9 +506,24 @@
     <div id="debugInfo" class="debug" style="display: none;"></div>
   </div>
 <script>
+  // Constants
+  const RATE_LIMIT_MINUTES = 5;
+  const RATE_LIMIT_MS = RATE_LIMIT_MINUTES * 60 * 1000;
+  const AUTHOR_STORAGE_KEY = 'message_author';
+  const PLUGIN_ID_STORAGE_KEY = 'plugin_id';
+  const CONFIG_STORAGE_KEY = 'plugin_config';
+  const MAX_TOTAL_SIZE = 2000;
+  const STREAM_LIMIT = 2;
+  const MAX_MESSAGE_LENGTH = 280;
+  const MAX_DRAWING_SIZE_KB = 50; // Max size for SVG drawing in KB
+
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  // DOM Elements
   const form = document.getElementById('messageForm');
   const messageInput = document.getElementById('message');
   const authorInput = document.getElementById('author');
+  const authorImageInput = document.getElementById('authorImage');
   const imageUrlInput = document.getElementById('imageUrl');
   const submitBtn = document.getElementById('submitBtn');
   const statusMessage = document.getElementById('statusMessage');
@@ -340,30 +535,67 @@
   const rateLimitInfo = document.getElementById('rateLimitInfo');
   const lastMessageCard = document.getElementById('lastMessageCard');
   const lastMessageContent = document.getElementById('lastMessageContent');
-  const messageOptionalLabel = document.getElementById('messageOptionalLabel');
-  const messageRequiredLabel = document.getElementById('messageRequiredLabel');
-  const authorOptionalLabel = document.getElementById('authorOptionalLabel');
-  const authorRequiredLabel = document.getElementById('authorRequiredLabel');
 
-  // Constants
-  const RATE_LIMIT_MINUTES = 5;
-  const RATE_LIMIT_MS = RATE_LIMIT_MINUTES * 60 * 1000;
-  const AUTHOR_STORAGE_KEY = 'message_author';
-  const PLUGIN_ID_STORAGE_KEY = 'plugin_id';
-  const CONFIG_STORAGE_KEY = 'plugin_config';
-  const MAX_TOTAL_SIZE = 2000; // 2KB total
-  const STREAM_LIMIT = 2; // Keep only 2 messages
-  const MAX_MESSAGE_LENGTH = 280; // Reduced from 500 to 280
+  // Mode switching
+  const modeButtons = document.querySelectorAll('.mode-button');
+  const messageMode = document.getElementById('messageMode');
+  const imageMode = document.getElementById('imageMode');
+  let currentMode = 'message';
 
-  // UUID validation regex
-  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // Image Picker
+  const imagePicker = document.getElementById('imagePicker');
+  const imageGrid = document.getElementById('imageGrid');
+  const imageSearch = document.getElementById('imageSearch');
+  const togglePicker = document.getElementById('togglePicker');
+  let pickerVisible = true;
 
-  // Get encoded parameter from query string
+  // Curated image library with categories
+  const imageLibrary = [
+    // Nature
+    { url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800', tags: ['nature', 'mountain', 'landscape', 'sky'] },
+    { url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800', tags: ['nature', 'forest', 'trees', 'green'] },
+    { url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', tags: ['nature', 'field', 'landscape', 'sunset'] },
+    { url: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800', tags: ['nature', 'ocean', 'water', 'sunset'] },
+    { url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800', tags: ['nature', 'fog', 'mountain', 'landscape'] },
+
+    // Abstract & Patterns
+    { url: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=800', tags: ['abstract', 'colors', 'pattern', 'art'] },
+    { url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=800', tags: ['abstract', 'colors', 'gradient', 'art'] },
+    { url: 'https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=800', tags: ['abstract', 'pattern', 'geometric', 'art'] },
+    { url: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800', tags: ['abstract', 'gradient', 'colors', 'art'] },
+
+    // Urban & Architecture
+    { url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=800', tags: ['urban', 'city', 'building', 'architecture'] },
+    { url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800', tags: ['urban', 'city', 'night', 'lights'] },
+    { url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800', tags: ['urban', 'city', 'architecture', 'skyline'] },
+
+    // Minimalist
+    { url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=800', tags: ['minimalist', 'simple', 'clean', 'gradient'] },
+    { url: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800', tags: ['minimalist', 'simple', 'abstract', 'pattern'] },
+
+    // Space & Sky
+    { url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800', tags: ['space', 'stars', 'night', 'sky'] },
+    { url: 'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800', tags: ['space', 'aurora', 'night', 'sky'] },
+
+    // Seasonal
+    { url: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=800', tags: ['autumn', 'fall', 'leaves', 'nature'] },
+    { url: 'https://images.unsplash.com/photo-1511131341194-24e2eeeebb09?w=800', tags: ['winter', 'snow', 'mountain', 'nature'] },
+    { url: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=800', tags: ['spring', 'flowers', 'nature', 'bloom'] },
+
+    // Animals
+    { url: 'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?w=800', tags: ['animal', 'cat', 'pet', 'cute'] },
+    { url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800', tags: ['animal', 'dog', 'pet', 'cute'] },
+
+    // Food & Drink
+    { url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800', tags: ['food', 'coffee', 'drink', 'cafe'] },
+    { url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800', tags: ['food', 'meal', 'dinner', 'restaurant'] },
+  ];
+
+  // Get URL parameters
   const urlParams = new URLSearchParams(window.location.search);
   const encodedParam = urlParams.get('p') || urlParams.get('plugin') || urlParams.get('id');
   const legacyWebhookParam = urlParams.get('webhook') || urlParams.get('url') || urlParams.get('plugin_id');
 
-  // Base64 URL-safe decode
   function base64UrlDecode(str) {
     str = str.replace(/-/g, '+').replace(/_/g, '/');
     while (str.length % 4) {
@@ -376,7 +608,6 @@
     }
   }
 
-  // Decode configuration from URL parameter
   function decodeConfig(encoded) {
     try {
       const decoded = base64UrlDecode(encoded);
@@ -399,7 +630,6 @@
     }
   }
 
-  // Extract plugin ID from legacy formats
   function extractPluginId(input) {
     if (!input) return null;
 
@@ -415,7 +645,6 @@
     return null;
   }
 
-  // Get plugin configuration
   function getPluginConfig() {
     let config = null;
     let source = 'none';
@@ -470,218 +699,26 @@
     return { config, source };
   }
 
-  const { config, source } = getPluginConfig();
+  // Mode switching
+  modeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      const mode = button.dataset.mode;
 
-  // Calculate JSON size in bytes
-  function getJsonSize(obj) {
-    return new Blob([JSON.stringify(obj)]).size;
-  }
+      modeButtons.forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
 
-  // Fetch last message from API
-  async function fetchLastMessage() {
-    if (!config || !config.pluginId) return null;
+      messageMode.style.display = 'none';
+      imageMode.style.display = 'none';
 
-    try {
-      const response = await fetch(`https://usetrmnl.com/api/custom_plugins/${config.pluginId}`);
-
-      if (!response.ok) {
-        console.error('Failed to fetch last message:', response.status);
-        return null;
+      if (mode === 'message') {
+        messageMode.style.display = 'block';
+      } else if (mode === 'image') {
+        imageMode.style.display = 'block';
       }
 
-      const data = await response.json();
-
-      // Check if we have messages array
-      if (data.merge_variables && data.merge_variables.messages && Array.isArray(data.merge_variables.messages)) {
-        const messages = data.merge_variables.messages;
-        if (messages.length > 0) {
-          return messages[messages.length - 1]; // Return most recent message
-        }
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Error fetching last message:', error);
-      return null;
-    }
-  }
-
-  // Fetch all messages for size calculation
-  async function fetchAllMessages() {
-    if (!config || !config.pluginId) return [];
-
-    try {
-      const response = await fetch(`https://usetrmnl.com/api/custom_plugins/${config.pluginId}`);
-
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json();
-
-      if (data.merge_variables && data.merge_variables.messages && Array.isArray(data.merge_variables.messages)) {
-        return data.merge_variables.messages;
-      }
-
-      return [];
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-      return [];
-    }
-  }
-
-  // Display last message in card
-  function displayLastMessage(message) {
-    if (!message || !message.timestamp_utc) {
-      lastMessageCard.style.display = 'none';
-      return;
-    }
-
-    const timestamp = new Date(message.timestamp_utc);
-    const localTime = timestamp.toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      currentMode = mode;
     });
-
-    const author = message.author || 'Anonymous';
-
-    lastMessageContent.innerHTML = `
-      <div class="last-message-author">${author}</div>
-      <div class="last-message-time">${localTime}</div>
-    `;
-
-    lastMessageCard.style.display = 'block';
-  }
-
-  // Check if we can send based on last message timestamp
-  function checkCanSendBasedOnLastMessage(lastMessage) {
-    if (!lastMessage || !lastMessage.timestamp_utc) {
-      return true;
-    }
-
-    const lastTimestamp = new Date(message.timestamp_utc).getTime();
-    const now = Date.now();
-    const timeSinceLast = now - lastTimestamp;
-
-    if (timeSinceLast < RATE_LIMIT_MS) {
-      const remainingTime = RATE_LIMIT_MS - timeSinceLast;
-      const remainingMinutes = Math.floor(remainingTime / (60 * 1000));
-      const remainingSeconds = Math.ceil((remainingTime % (60 * 1000)) / 1000);
-
-      submitBtn.disabled = true;
-      rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}</span>`;
-
-      // Update countdown
-      const countdownInterval = setInterval(() => {
-        const newRemainingTime = RATE_LIMIT_MS - (Date.now() - lastTimestamp);
-
-        if (newRemainingTime <= 0) {
-          clearInterval(countdownInterval);
-          submitBtn.disabled = false;
-          rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
-        } else {
-          const newRemainingMinutes = Math.floor(newRemainingTime / (60 * 1000));
-          const newRemainingSeconds = Math.ceil((newRemainingTime % (60 * 1000)) / 1000);
-          rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${newRemainingMinutes}:${newRemainingSeconds.toString().padStart(2, '0')}</span>`;
-        }
-      }, 1000);
-
-      return false;
-    }
-
-    submitBtn.disabled = false;
-    rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
-    return true;
-  }
-
-  // Initialize the form
-  async function initializeForm() {
-    if (!config) {
-      handleInvalidConfig();
-      return;
-    }
-
-    // Update UI based on configuration
-    if (config.authorRequired) {
-      authorOptionalLabel.style.display = 'none';
-      authorRequiredLabel.style.display = 'inline';
-      authorInput.required = true;
-      authorInput.placeholder = 'Your name is required';
-    }
-
-    if (config.messageRequired) {
-      messageOptionalLabel.style.display = 'none';
-      messageRequiredLabel.style.display = 'inline';
-      messageInput.required = true;
-      messageInput.placeholder = 'Message is required';
-      messageInput.maxLength = MAX_MESSAGE_LENGTH;
-    }
-
-    // Update character counter to show max length
-    charCount.textContent = `0/${MAX_MESSAGE_LENGTH}`;
-
-    // Load saved author from localStorage
-    const savedAuthor = localStorage.getItem(AUTHOR_STORAGE_KEY);
-    if (savedAuthor) {
-      authorInput.value = savedAuthor;
-    }
-
-    // Fetch and display last message
-    lastMessageContent.innerHTML = '<div class="last-message-loading">Loading last message...</div>';
-    lastMessageCard.style.display = 'block';
-
-    const lastMessage = await fetchLastMessage();
-    displayLastMessage(lastMessage);
-    checkCanSendBasedOnLastMessage(lastMessage);
-
-    // Show debug info
-    let sourceText = '';
-    switch (source) {
-      case 'url_encoded':
-        sourceText = 'Encoded URL parameter (saved to localStorage)';
-        break;
-      case 'url_legacy':
-        sourceText = 'Legacy URL parameter (saved to localStorage)';
-        break;
-      case 'localStorage':
-        sourceText = 'localStorage';
-        break;
-      default:
-        sourceText = 'unknown';
-    }
-
-    debugInfo.innerHTML = `
-      Plugin ID: ${config.pluginId}<br>
-      Source: <span class="plugin-source">${sourceText}</span><br>
-      Author Required: ${config.authorRequired ? 'Yes' : 'No'}<br>
-      Message Required: ${config.messageRequired ? 'Yes' : 'No'}<br>
-      Max Message Length: ${MAX_MESSAGE_LENGTH}<br>
-      Stream Limit: ${STREAM_LIMIT} messages<br>
-      Max Total Size: ${MAX_TOTAL_SIZE} bytes
-    `;
-    debugInfo.style.display = 'block';
-
-    if (source === 'localStorage') {
-      showMessage('✓ Using saved configuration from previous session', 'success');
-      setTimeout(() => {
-        statusMessage.classList.remove('show');
-      }, 3000);
-    }
-  }
-
-  function handleInvalidConfig() {
-    if (encodedParam) {
-      showMessage('⚠ Invalid or corrupted configuration parameter', 'error');
-    } else if (legacyWebhookParam) {
-      showMessage('⚠ Invalid plugin ID or webhook URL format', 'error');
-    } else {
-      showMessage('⚠ No configuration detected. Please scan the QR code to access this form.', 'error');
-    }
-    submitBtn.disabled = true;
-  }
+  });
 
   // Character counter
   messageInput.addEventListener('input', () => {
@@ -696,14 +733,23 @@
   });
 
   // Save author to localStorage
-  authorInput.addEventListener('input', () => {
-    const authorValue = authorInput.value.trim();
-    if (authorValue) {
-      localStorage.setItem(AUTHOR_STORAGE_KEY, authorValue);
-    } else {
-      localStorage.removeItem(AUTHOR_STORAGE_KEY);
-    }
-  });
+  function setupAuthorSync(input) {
+    input.addEventListener('input', () => {
+      const authorValue = input.value.trim();
+      if (authorValue) {
+        localStorage.setItem(AUTHOR_STORAGE_KEY, authorValue);
+        // Sync to other author inputs
+        [authorInput, authorImageInput].forEach(inp => {
+          if (inp !== input) inp.value = authorValue;
+        });
+      } else {
+        localStorage.removeItem(AUTHOR_STORAGE_KEY);
+      }
+    });
+  }
+
+  setupAuthorSync(authorInput);
+  setupAuthorSync(authorImageInput);
 
   // Image URL validation
   let imageValidationTimeout;
@@ -757,6 +803,9 @@
 
       imagePreview.innerHTML = `<img src="${url}" alt="Image preview">`;
       imagePreview.className = 'image-preview show';
+
+      // Clear any selected image in picker
+      document.querySelectorAll('.image-option').forEach(opt => opt.classList.remove('selected'));
     };
 
     img.onerror = function() {
@@ -767,6 +816,74 @@
 
     img.src = url;
   }
+
+  // Image Picker Functions
+  function renderImageGrid(images) {
+    if (images.length === 0) {
+      imageGrid.innerHTML = '<div class="no-results">No images found. Try a different search term.</div>';
+      return;
+    }
+
+    imageGrid.innerHTML = images.map(img => `
+      <div class="image-option" data-url="${img.url}">
+        <img src="${img.url}" alt="Image option" loading="lazy">
+        <div class="image-option-check">✓</div>
+      </div>
+    `).join('');
+
+    // Add click handlers
+    document.querySelectorAll('.image-option').forEach(option => {
+      option.addEventListener('click', function() {
+        const url = this.dataset.url;
+
+        // Update selected state
+        document.querySelectorAll('.image-option').forEach(opt => opt.classList.remove('selected'));
+        this.classList.add('selected');
+
+        // Set the URL in the input
+        imageUrlInput.value = url;
+
+        // Trigger validation
+        validateImageUrl(url);
+      });
+    });
+  }
+
+  function filterImages(searchTerm) {
+    if (!searchTerm) {
+      return imageLibrary;
+    }
+
+    const term = searchTerm.toLowerCase();
+    return imageLibrary.filter(img =>
+      img.tags.some(tag => tag.includes(term))
+    );
+  }
+
+  // Initialize image picker
+  renderImageGrid(imageLibrary);
+
+  // Search functionality
+  imageSearch.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.trim();
+    const filteredImages = filterImages(searchTerm);
+    renderImageGrid(filteredImages);
+  });
+
+  // Toggle picker visibility
+  togglePicker.addEventListener('click', () => {
+    pickerVisible = !pickerVisible;
+
+    if (pickerVisible) {
+      imageGrid.style.display = 'grid';
+      imageSearch.style.display = 'block';
+      togglePicker.textContent = 'Hide';
+    } else {
+      imageGrid.style.display = 'none';
+      imageSearch.style.display = 'none';
+      togglePicker.textContent = 'Show';
+    }
+  });
 
   function showMessage(text, type) {
     statusMessage.textContent = text;
@@ -779,46 +896,239 @@
     }
   }
 
-  // Handle form submission with proper streaming and size management
+  function getJsonSize(obj) {
+    return new Blob([JSON.stringify(obj)]).size;
+  }
+
+  async function fetchLastMessage() {
+    const { config } = getPluginConfig();
+    if (!config || !config.pluginId) return null;
+
+    try {
+      const response = await fetch(`https://usetrmnl.com/api/custom_plugins/${config.pluginId}`);
+
+      if (!response.ok) {
+        console.error('Failed to fetch last message:', response.status);
+        return null;
+      }
+
+      const data = await response.json();
+
+      if (data.merge_variables && data.merge_variables.messages && Array.isArray(data.merge_variables.messages)) {
+        const messages = data.merge_variables.messages;
+        if (messages.length > 0) {
+          return messages[messages.length - 1];
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error fetching last message:', error);
+      return null;
+    }
+  }
+
+  async function fetchAllMessages() {
+    const { config } = getPluginConfig();
+    if (!config || !config.pluginId) return [];
+
+    try {
+      const response = await fetch(`https://usetrmnl.com/api/custom_plugins/${config.pluginId}`);
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = await response.json();
+
+      if (data.merge_variables && data.merge_variables.messages && Array.isArray(data.merge_variables.messages)) {
+        return data.merge_variables.messages;
+      }
+
+      return [];
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      return [];
+    }
+  }
+
+  function displayLastMessage(message) {
+    if (!message || !message.timestamp_utc) {
+      lastMessageCard.style.display = 'none';
+      return;
+    }
+
+    const timestamp = new Date(message.timestamp_utc);
+    const localTime = timestamp.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const author = message.author || 'Anonymous';
+
+    lastMessageContent.innerHTML = `
+      <div class="last-message-author">${author}</div>
+      <div class="last-message-time">${localTime}</div>
+    `;
+
+    lastMessageCard.style.display = 'block';
+  }
+
+  function checkCanSendBasedOnLastMessage(lastMessage) {
+    if (!lastMessage || !lastMessage.timestamp_utc) {
+      rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+      return true;
+    }
+
+    const lastTimestamp = new Date(lastMessage.timestamp_utc).getTime();
+    const now = Date.now();
+    const timeSinceLast = now - lastTimestamp;
+
+    if (timeSinceLast < RATE_LIMIT_MS) {
+      const remainingTime = RATE_LIMIT_MS - timeSinceLast;
+      const remainingMinutes = Math.floor(remainingTime / (60 * 1000));
+      const remainingSeconds = Math.ceil((remainingTime % (60 * 1000)) / 1000);
+
+      submitBtn.disabled = true;
+      rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}</span>`;
+
+      const countdownInterval = setInterval(() => {
+        const newRemainingTime = RATE_LIMIT_MS - (Date.now() - lastTimestamp);
+
+        if (newRemainingTime <= 0) {
+          clearInterval(countdownInterval);
+          submitBtn.disabled = false;
+          rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+        } else {
+          const newRemainingMinutes = Math.floor(newRemainingTime / (60 * 1000));
+          const newRemainingSeconds = Math.ceil((newRemainingTime % (60 * 1000)) / 1000);
+          rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${newRemainingMinutes}:${newRemainingSeconds.toString().padStart(2, '0')}</span>`;
+        }
+      }, 1000);
+
+      return false;
+    }
+
+    submitBtn.disabled = false;
+    rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+    return true;
+  }
+
+  async function initializeForm() {
+    const { config, source } = getPluginConfig();
+
+    if (!config) {
+      handleInvalidConfig();
+      return;
+    }
+
+    // Update UI based on configuration
+    if (config.authorRequired) {
+      document.getElementById('authorOptionalLabel').style.display = 'none';
+      document.getElementById('authorRequiredLabel').style.display = 'inline';
+      document.getElementById('authorImageOptionalLabel').style.display = 'none';
+      document.getElementById('authorImageRequiredLabel').style.display = 'inline';
+      authorInput.required = true;
+      authorImageInput.required = true;
+    }
+
+    if (config.messageRequired) {
+      document.getElementById('messageOptionalLabel').style.display = 'none';
+      document.getElementById('messageRequiredLabel').style.display = 'inline';
+      messageInput.required = true;
+      messageInput.placeholder = 'Message is required';
+    }
+
+    // Load saved author
+    const savedAuthor = localStorage.getItem(AUTHOR_STORAGE_KEY);
+    if (savedAuthor) {
+      authorInput.value = savedAuthor;
+      authorImageInput.value = savedAuthor;
+    }
+
+    // Fetch and display last message
+    lastMessageContent.innerHTML = '<div class="last-message-loading">Loading last message...</div>';
+    lastMessageCard.style.display = 'block';
+
+    const lastMessage = await fetchLastMessage();
+    displayLastMessage(lastMessage);
+    checkCanSendBasedOnLastMessage(lastMessage);
+
+    // Show debug info
+    let sourceText = source;
+    if (source === 'url_encoded') sourceText = 'Encoded URL (saved)';
+    else if (source === 'url_legacy') sourceText = 'Legacy URL (saved)';
+    else if (source === 'localStorage') sourceText = 'localStorage';
+
+    debugInfo.innerHTML = `
+      Plugin ID: ${config.pluginId}<br>
+      Source: <span class="plugin-source">${sourceText}</span><br>
+      Author Required: ${config.authorRequired ? 'Yes' : 'No'}<br>
+      Message Required: ${config.messageRequired ? 'Yes' : 'No'}<br>
+      Max Message Length: ${MAX_MESSAGE_LENGTH}<br>
+      Stream Limit: ${STREAM_LIMIT} messages<br>
+      Max Total Size: ${MAX_TOTAL_SIZE} bytes
+    `;
+    debugInfo.style.display = 'block';
+
+    if (source === 'localStorage') {
+      showMessage('✓ Using saved configuration from previous session', 'success');
+      setTimeout(() => {
+        statusMessage.classList.remove('show');
+      }, 3000);
+    }
+  }
+
+  function handleInvalidConfig() {
+    if (encodedParam) {
+      showMessage('⚠ Invalid or corrupted configuration parameter', 'error');
+    } else if (legacyWebhookParam) {
+      showMessage('⚠ Invalid plugin ID or webhook URL format', 'error');
+    } else {
+      showMessage('⚠ No configuration detected. Please scan the QR code to access this form.', 'error');
+    }
+  }
+
+  // Form submission
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const { config } = getPluginConfig();
     if (!config || !config.pluginId) {
-      showMessage('Error: No plugin ID available. Please scan the QR code to access this form.', 'error');
+      showMessage('Error: No plugin ID available. Please enter one in the advanced settings or scan the QR code.', 'error');
       return;
     }
 
-    const messageText = messageInput.value.trim();
-    const authorText = authorInput.value.trim() || 'Anonymous';
-    const imageUrl = imageUrlInput.value.trim();
+    let messageText = '';
+    let authorText = '';
+    let imageUrl = '';
 
-    // Validation
-    if (config.messageRequired && !messageText) {
-      showMessage('Message is required.', 'error');
-      messageInput.classList.add('error');
-      return;
-    }
+    if (currentMode === 'message') {
+      messageText = messageInput.value.trim();
+      authorText = authorInput.value.trim() || 'Anonymous';
 
-    if (config.authorRequired && !authorText) {
-      showMessage('Author name is required.', 'error');
-      authorInput.classList.add('error');
-      return;
-    }
+      if (config.messageRequired && !messageText) {
+        showMessage('Message is required.', 'error');
+        messageInput.classList.add('error');
+        return;
+      }
 
-    messageInput.classList.remove('error');
-    authorInput.classList.remove('error');
+      if (!messageText) {
+        showMessage('Please enter a message.', 'error');
+        return;
+      }
+    } else if (currentMode === 'image') {
+      imageUrl = imageUrlInput.value.trim();
+      authorText = authorImageInput.value.trim() || 'Anonymous';
 
-    if (!config.messageRequired && !messageText && !imageUrl) {
-      showMessage('Please enter either a message or an image URL.', 'error');
-      return;
-    }
+      if (!imageUrl) {
+        showMessage('Please enter an image URL.', 'error');
+        return;
+      }
 
-    if (messageText.length > MAX_MESSAGE_LENGTH) {
-      showMessage(`Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters allowed.`, 'error');
-      return;
-    }
-
-    if (imageUrl) {
       try {
         new URL(imageUrl);
       } catch (e) {
@@ -827,33 +1137,31 @@
       }
     }
 
+    if (config.authorRequired && authorText === 'Anonymous') {
+      showMessage('Author name is required.', 'error');
+      return;
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
 
     const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${config.pluginId}`;
 
     try {
-      // Create new message
       const newMessage = {
-        message: messageText,
+        message: messageText || undefined,
         author: authorText,
         image_url: imageUrl || undefined,
         timestamp_utc: new Date().toISOString()
       };
 
-      // Fetch current state right before submitting
       const currentMessages = await fetchAllMessages();
-      const lastMessage = await fetchLastMessage();
-
-      // Try streaming approach first (keeping 2 messages)
       let updatedMessages = [...currentMessages, newMessage];
 
-      // Ensure we don't exceed stream limit
       if (updatedMessages.length > STREAM_LIMIT) {
         updatedMessages = updatedMessages.slice(-STREAM_LIMIT);
       }
 
-      // Create streaming payload
       const streamingPayload = {
         merge_variables: {
           messages: updatedMessages
@@ -869,24 +1177,21 @@
       let useStreaming = true;
 
       if (streamingSize <= MAX_TOTAL_SIZE) {
-        // Streaming fits within 2KB
         finalPayload = streamingPayload;
         console.log('Using streaming approach with', updatedMessages.length, 'messages');
       } else {
-        // Streaming too large, fall back to single message
         useStreaming = false;
         finalPayload = {
           merge_variables: {
-            messages: [newMessage] // Just the new message
+            messages: [newMessage]
           }
-          // No merge_strategy - this will replace all messages
         };
 
         const singleMessageSize = getJsonSize(finalPayload);
         console.log(`Single message payload size: ${singleMessageSize} bytes`);
 
         if (singleMessageSize > MAX_TOTAL_SIZE) {
-          showMessage('Message too large to send. Please shorten your message or remove the image.', 'error');
+          showMessage('Message too large to send. Please shorten your message or simplify your drawing.', 'error');
           submitBtn.disabled = false;
           submitBtn.textContent = 'Send Message';
           return;
@@ -900,7 +1205,6 @@
 
       console.log('Sending to:', webhookUrl);
       console.log('Final payload size:', getJsonSize(finalPayload), 'bytes');
-      console.log('Payload:', finalPayload);
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -919,16 +1223,14 @@
           showMessage('✓ Message sent! (Older messages cleared)', 'success');
         }
 
-        // Refresh last message display
         const newLastMessage = await fetchLastMessage();
         displayLastMessage(newLastMessage);
         checkCanSendBasedOnLastMessage(newLastMessage);
 
-        // Clear form but keep author
+        // Clear form
         messageInput.value = '';
         imageUrlInput.value = '';
         charCount.textContent = `0/${MAX_MESSAGE_LENGTH}`;
-
         imageValidation.className = 'validation';
         imagePreview.className = 'image-preview';
         imagePreview.innerHTML = '';
@@ -937,7 +1239,7 @@
         console.error('Error response:', errorText);
 
         if (response.status === 413) {
-          showMessage('Message too large. Please shorten your message or use a smaller image.', 'error');
+          showMessage('Message too large. Please shorten your message or simplify your drawing.', 'error');
         } else if (response.status === 429) {
           showMessage('Rate limit exceeded. Please wait before sending another message.', 'error');
         } else {
