@@ -42,6 +42,41 @@
       font-size: 14px;
     }
 
+    .last-message-card {
+      background: #f8f9fa;
+      border-left: 4px solid #667eea;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+
+    .last-message-header {
+      font-size: 12px;
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .last-message-author {
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .last-message-time {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .last-message-loading {
+      color: #999;
+      font-size: 13px;
+      font-style: italic;
+    }
+
     .form-group {
       margin-bottom: 20px;
     }
@@ -52,6 +87,11 @@
       color: #333;
       font-weight: 500;
       font-size: 14px;
+    }
+
+    .required-asterisk {
+      color: #e74c3c;
+      margin-left: 2px;
     }
 
     input, textarea {
@@ -67,6 +107,10 @@
     input:focus, textarea:focus {
       outline: none;
       border-color: #667eea;
+    }
+
+    input.error, textarea.error {
+      border-color: #e74c3c;
     }
 
     textarea {
@@ -87,12 +131,12 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    button:hover {
+    button:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
     }
 
-    button:active {
+    button:active:not(:disabled) {
       transform: translateY(0);
     }
 
@@ -213,12 +257,6 @@
       color: #e74c3c;
     }
 
-    .plugin-info {
-      font-size: 12px;
-      color: #666;
-      margin-top: 4px;
-    }
-
     .plugin-source {
       color: #667eea;
       font-weight: 500;
@@ -230,9 +268,18 @@
     <h1>📬 Leave a Message</h1>
     <p class="subtitle">Your message or image will appear on the TRMNL display</p>
 
+    <div id="lastMessageCard" class="last-message-card" style="display: none;">
+      <div class="last-message-header">Latest Message</div>
+      <div id="lastMessageContent"></div>
+    </div>
+
     <form id="messageForm">
       <div class="form-group">
-        <label for="message">Message <span class="optional-label">(optional if sending an image)</span></label>
+        <label for="message">
+          Message
+          <span class="optional-label" id="messageOptionalLabel">(optional if sending an image)</span>
+          <span class="required-asterisk" id="messageRequiredLabel" style="display: none;">*</span>
+        </label>
         <textarea
           id="message"
           name="message"
@@ -242,7 +289,11 @@
       </div>
 
       <div class="form-group">
-        <label for="author">Your Name <span class="optional-label">(optional)</span></label>
+        <label for="author">
+          Your Name
+          <span class="optional-label" id="authorOptionalLabel">(optional)</span>
+          <span class="required-asterisk" id="authorRequiredLabel" style="display: none;">*</span>
+        </label>
         <input
           type="text"
           id="author"
@@ -287,32 +338,73 @@
     const imagePreview = document.getElementById('imagePreview');
     const imageLoading = document.getElementById('imageLoading');
     const rateLimitInfo = document.getElementById('rateLimitInfo');
+    const lastMessageCard = document.getElementById('lastMessageCard');
+    const lastMessageContent = document.getElementById('lastMessageContent');
+    const messageOptionalLabel = document.getElementById('messageOptionalLabel');
+    const messageRequiredLabel = document.getElementById('messageRequiredLabel');
+    const authorOptionalLabel = document.getElementById('authorOptionalLabel');
+    const authorRequiredLabel = document.getElementById('authorRequiredLabel');
 
     // Constants
     const RATE_LIMIT_MINUTES = 5;
     const RATE_LIMIT_MS = RATE_LIMIT_MINUTES * 60 * 1000;
     const AUTHOR_STORAGE_KEY = 'message_author';
-    const LAST_SUBMISSION_KEY = 'last_message_submission';
     const PLUGIN_ID_STORAGE_KEY = 'plugin_id';
+    const CONFIG_STORAGE_KEY = 'plugin_config';
 
     // UUID validation regex
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Get webhook URL from query parameter
+    // Get encoded parameter from query string
     const urlParams = new URLSearchParams(window.location.search);
-    let webhookParam = urlParams.get('webhook') || urlParams.get('url') || urlParams.get('plugin_id');
+    const encodedParam = urlParams.get('p') || urlParams.get('plugin') || urlParams.get('id');
+    const legacyWebhookParam = urlParams.get('webhook') || urlParams.get('url') || urlParams.get('plugin_id');
 
-    // Extract plugin ID from full URL or validate UUID
+    // Base64 URL-safe decode
+    function base64UrlDecode(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) {
+        str += '=';
+      }
+      try {
+        return atob(str);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    // Decode configuration from URL parameter
+    function decodeConfig(encoded) {
+      try {
+        const decoded = base64UrlDecode(encoded);
+        if (!decoded) return null;
+
+        const config = JSON.parse(decoded);
+
+        if (!config.id || !UUID_REGEX.test(config.id)) {
+          return null;
+        }
+
+        return {
+          pluginId: config.id,
+          authorRequired: config.ar === true || config.ar === 1,
+          messageRequired: config.mr === true || config.mr === 1
+        };
+      } catch (e) {
+        console.error('Failed to decode config:', e);
+        return null;
+      }
+    }
+
+    // Extract plugin ID from legacy formats
     function extractPluginId(input) {
       if (!input) return null;
 
-      // If it's a full TRMNL webhook URL, extract the UUID
       const urlMatch = input.match(/usetrmnl\.com\/api\/custom_plugins\/([0-9a-f-]{36})/i);
       if (urlMatch) {
         return urlMatch[1];
       }
 
-      // If it looks like a UUID, use it directly
       if (UUID_REGEX.test(input)) {
         return input;
       }
@@ -320,105 +412,139 @@
       return null;
     }
 
-    // Get plugin ID with fallback to localStorage
-    function getPluginId() {
-      let pluginId = null;
+    // Get plugin configuration
+    function getPluginConfig() {
+      let config = null;
       let source = 'none';
 
-      // First priority: URL parameter
-      if (webhookParam) {
-        pluginId = extractPluginId(webhookParam);
+      if (encodedParam) {
+        config = decodeConfig(encodedParam);
+        if (config) {
+          source = 'url_encoded';
+          localStorage.setItem(PLUGIN_ID_STORAGE_KEY, config.pluginId);
+          localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+        }
+      }
+
+      if (!config && legacyWebhookParam) {
+        const pluginId = extractPluginId(legacyWebhookParam);
         if (pluginId) {
-          source = 'url';
-          // Save to localStorage when provided via URL
+          config = {
+            pluginId: pluginId,
+            authorRequired: false,
+            messageRequired: false
+          };
+          source = 'url_legacy';
           localStorage.setItem(PLUGIN_ID_STORAGE_KEY, pluginId);
+          localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
         }
       }
 
-      // Second priority: localStorage
-      if (!pluginId) {
-        const storedPluginId = localStorage.getItem(PLUGIN_ID_STORAGE_KEY);
-        if (storedPluginId && UUID_REGEX.test(storedPluginId)) {
-          pluginId = storedPluginId;
-          source = 'localStorage';
+      if (!config) {
+        const storedConfig = localStorage.getItem(CONFIG_STORAGE_KEY);
+        if (storedConfig) {
+          try {
+            config = JSON.parse(storedConfig);
+            if (config.pluginId && UUID_REGEX.test(config.pluginId)) {
+              source = 'localStorage';
+            } else {
+              config = null;
+            }
+          } catch (e) {
+            const storedPluginId = localStorage.getItem(PLUGIN_ID_STORAGE_KEY);
+            if (storedPluginId && UUID_REGEX.test(storedPluginId)) {
+              config = {
+                pluginId: storedPluginId,
+                authorRequired: false,
+                messageRequired: false
+              };
+              source = 'localStorage';
+            }
+          }
         }
       }
 
-      return { pluginId, source };
+      return { config, source };
     }
 
-    const { pluginId, source } = getPluginId();
+    const { config, source } = getPluginConfig();
 
-    // Initialize the form
-    function initializeForm() {
-      // Load saved author from localStorage
-      const savedAuthor = localStorage.getItem(AUTHOR_STORAGE_KEY);
-      if (savedAuthor) {
-        authorInput.value = savedAuthor;
-      }
+    // Fetch last message from API
+    async function fetchLastMessage() {
+      if (!config || !config.pluginId) return null;
 
-      // Check rate limiting
-      checkRateLimit();
+      try {
+        const response = await fetch(`https://usetrmnl.com/api/custom_plugins/${config.pluginId}`);
 
-      // Show debug info
-      if (pluginId) {
-        let sourceText = '';
-        switch (source) {
-          case 'url':
-            sourceText = 'URL parameter (saved to localStorage)';
-            break;
-          case 'localStorage':
-            sourceText = 'localStorage';
-            break;
-          default:
-            sourceText = 'unknown';
+        if (!response.ok) {
+          console.error('Failed to fetch last message:', response.status);
+          return null;
         }
 
-        debugInfo.innerHTML = `
-          Plugin ID: ${pluginId}<br>
-          Source: <span class="plugin-source">${sourceText}</span>
-        `;
-        debugInfo.style.display = 'block';
-      }
+        const data = await response.json();
 
-      // Show validation error on page load
-      if (!pluginId && webhookParam) {
-        showMessage('⚠ Invalid plugin ID or webhook URL format. Expected UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', 'error');
-      } else if (!pluginId) {
-        showMessage('⚠ No webhook URL detected. Please scan the QR code to access this form.', 'error');
-      } else if (source === 'localStorage') {
-        showMessage('✓ Using saved plugin ID from previous session', 'success');
-        setTimeout(() => {
-          statusMessage.classList.remove('show');
-        }, 3000);
+        // Check if we have messages array
+        if (data.merge_variables && data.merge_variables.messages && Array.isArray(data.merge_variables.messages)) {
+          const messages = data.merge_variables.messages;
+          if (messages.length > 0) {
+            return messages[0]; // Return most recent message
+          }
+        }
+
+        return null;
+      } catch (error) {
+        console.error('Error fetching last message:', error);
+        return null;
       }
     }
 
-    // Check rate limiting and update UI
-    function checkRateLimit() {
-      const lastSubmission = localStorage.getItem(LAST_SUBMISSION_KEY);
+    // Display last message in card
+    function displayLastMessage(message) {
+      if (!message || !message.timestamp_utc) {
+        lastMessageCard.style.display = 'none';
+        return;
+      }
 
-      if (!lastSubmission) {
-        // No previous submission, allow sending
-        submitBtn.disabled = false;
-        rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+      const timestamp = new Date(message.timestamp_utc);
+      const localTime = timestamp.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const author = message.author || 'Anonymous';
+
+      lastMessageContent.innerHTML = `
+        <div class="last-message-author">${author}</div>
+        <div class="last-message-time">${localTime}</div>
+      `;
+
+      lastMessageCard.style.display = 'block';
+    }
+
+    // Check if we can send based on last message timestamp
+    function checkCanSendBasedOnLastMessage(lastMessage) {
+      if (!lastMessage || !lastMessage.timestamp_utc) {
         return true;
       }
 
-      const timeSinceLastSubmission = Date.now() - parseInt(lastSubmission);
+      const lastTimestamp = new Date(lastMessage.timestamp_utc).getTime();
+      const now = Date.now();
+      const timeSinceLast = now - lastTimestamp;
 
-      if (timeSinceLastSubmission < RATE_LIMIT_MS) {
-        // Rate limited - calculate remaining time
-        const remainingTime = RATE_LIMIT_MS - timeSinceLastSubmission;
-        const remainingMinutes = Math.ceil(remainingTime / (60 * 1000));
+      if (timeSinceLast < RATE_LIMIT_MS) {
+        const remainingTime = RATE_LIMIT_MS - timeSinceLast;
+        const remainingMinutes = Math.floor(remainingTime / (60 * 1000));
         const remainingSeconds = Math.ceil((remainingTime % (60 * 1000)) / 1000);
 
         submitBtn.disabled = true;
-        rateLimitInfo.innerHTML = `Please wait <span class="countdown">${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}</span> before sending another message`;
+        rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${remainingMinutes}:${remainingSeconds.toString().padStart(2, '0')}</span>`;
 
-        // Update countdown every second
+        // Update countdown
         const countdownInterval = setInterval(() => {
-          const newRemainingTime = RATE_LIMIT_MS - (Date.now() - parseInt(lastSubmission));
+          const newRemainingTime = RATE_LIMIT_MS - (Date.now() - lastTimestamp);
 
           if (newRemainingTime <= 0) {
             clearInterval(countdownInterval);
@@ -427,22 +553,95 @@
           } else {
             const newRemainingMinutes = Math.floor(newRemainingTime / (60 * 1000));
             const newRemainingSeconds = Math.ceil((newRemainingTime % (60 * 1000)) / 1000);
-            rateLimitInfo.innerHTML = `Please wait <span class="countdown">${newRemainingMinutes}:${newRemainingSeconds.toString().padStart(2, '0')}</span> before sending another message`;
+            rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${newRemainingMinutes}:${newRemainingSeconds.toString().padStart(2, '0')}</span>`;
           }
         }, 1000);
 
         return false;
-      } else {
-        // Rate limit expired, allow sending
-        submitBtn.disabled = false;
-        rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
-        return true;
+      }
+
+      submitBtn.disabled = false;
+      rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+      return true;
+    }
+
+    // Initialize the form
+    async function initializeForm() {
+      if (!config) {
+        handleInvalidConfig();
+        return;
+      }
+
+      // Update UI based on configuration
+      if (config.authorRequired) {
+        authorOptionalLabel.style.display = 'none';
+        authorRequiredLabel.style.display = 'inline';
+        authorInput.required = true;
+        authorInput.placeholder = 'Your name is required';
+      }
+
+      if (config.messageRequired) {
+        messageOptionalLabel.style.display = 'none';
+        messageRequiredLabel.style.display = 'inline';
+        messageInput.required = true;
+        messageInput.placeholder = 'Message is required';
+      }
+
+      // Load saved author from localStorage
+      const savedAuthor = localStorage.getItem(AUTHOR_STORAGE_KEY);
+      if (savedAuthor) {
+        authorInput.value = savedAuthor;
+      }
+
+      // Fetch and display last message
+      lastMessageContent.innerHTML = '<div class="last-message-loading">Loading last message...</div>';
+      lastMessageCard.style.display = 'block';
+
+      const lastMessage = await fetchLastMessage();
+      displayLastMessage(lastMessage);
+      checkCanSendBasedOnLastMessage(lastMessage);
+
+      // Show debug info
+      let sourceText = '';
+      switch (source) {
+        case 'url_encoded':
+          sourceText = 'Encoded URL parameter (saved to localStorage)';
+          break;
+        case 'url_legacy':
+          sourceText = 'Legacy URL parameter (saved to localStorage)';
+          break;
+        case 'localStorage':
+          sourceText = 'localStorage';
+          break;
+        default:
+          sourceText = 'unknown';
+      }
+
+      debugInfo.innerHTML = `
+        Plugin ID: ${config.pluginId}<br>
+        Source: <span class="plugin-source">${sourceText}</span><br>
+        Author Required: ${config.authorRequired ? 'Yes' : 'No'}<br>
+        Message Required: ${config.messageRequired ? 'Yes' : 'No'}
+      `;
+      debugInfo.style.display = 'block';
+
+      if (source === 'localStorage') {
+        showMessage('✓ Using saved configuration from previous session', 'success');
+        setTimeout(() => {
+          statusMessage.classList.remove('show');
+        }, 3000);
       }
     }
 
-    // Save last submission timestamp
-    function saveLastSubmission() {
-      localStorage.setItem(LAST_SUBMISSION_KEY, Date.now().toString());
+    function handleInvalidConfig() {
+      if (encodedParam) {
+        showMessage('⚠ Invalid or corrupted configuration parameter', 'error');
+      } else if (legacyWebhookParam) {
+        showMessage('⚠ Invalid plugin ID or webhook URL format', 'error');
+      } else {
+        showMessage('⚠ No configuration detected. Please scan the QR code to access this form.', 'error');
+      }
+      submitBtn.disabled = true;
     }
 
     // Character counter
@@ -450,7 +649,7 @@
       charCount.textContent = messageInput.value.length;
     });
 
-    // Save author to localStorage when changed
+    // Save author to localStorage
     authorInput.addEventListener('input', () => {
       const authorValue = authorInput.value.trim();
       if (authorValue) {
@@ -460,14 +659,13 @@
       }
     });
 
-    // Image URL validation and preview
+    // Image URL validation
     let imageValidationTimeout;
     imageUrlInput.addEventListener('input', () => {
       clearTimeout(imageValidationTimeout);
 
       const url = imageUrlInput.value.trim();
 
-      // Reset validation and preview
       imageValidation.className = 'validation';
       imagePreview.className = 'image-preview';
       imageLoading.className = 'image-loading';
@@ -477,7 +675,6 @@
         return;
       }
 
-      // Basic URL validation
       try {
         new URL(url);
       } catch (e) {
@@ -486,7 +683,6 @@
         return;
       }
 
-      // Check if URL points to an image
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
       const isImageUrl = imageExtensions.some(ext =>
         url.toLowerCase().includes(ext)
@@ -498,13 +694,11 @@
         return;
       }
 
-      // Validate image by loading it
       imageValidationTimeout = setTimeout(() => {
         validateImageUrl(url);
       }, 500);
     });
 
-    // Function to validate image URL by attempting to load it
     function validateImageUrl(url) {
       imageLoading.className = 'image-loading show';
       imagePreview.className = 'image-preview';
@@ -515,7 +709,6 @@
         imageValidation.textContent = '✓ Valid image URL';
         imageValidation.className = 'validation success';
 
-        // Show preview
         imagePreview.innerHTML = `<img src="${url}" alt="Image preview">`;
         imagePreview.className = 'image-preview show';
       };
@@ -529,7 +722,6 @@
       img.src = url;
     }
 
-    // Show status message
     function showMessage(text, type) {
       statusMessage.textContent = text;
       statusMessage.className = `message ${type} show`;
@@ -545,14 +737,8 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      if (!pluginId) {
+      if (!config || !config.pluginId) {
         showMessage('Error: No plugin ID available. Please scan the QR code to access this form.', 'error');
-        return;
-      }
-
-      // Check rate limiting before submission
-      if (!checkRateLimit()) {
-        showMessage('Please wait before sending another message.', 'warning');
         return;
       }
 
@@ -560,13 +746,27 @@
       const authorText = authorInput.value.trim();
       const imageUrl = imageUrlInput.value.trim();
 
-      // Check if at least one of message or image is provided
-      if (!messageText && !imageUrl) {
+      // Validation
+      if (config.messageRequired && !messageText) {
+        showMessage('Message is required.', 'error');
+        messageInput.classList.add('error');
+        return;
+      }
+
+      if (config.authorRequired && !authorText) {
+        showMessage('Author name is required.', 'error');
+        authorInput.classList.add('error');
+        return;
+      }
+
+      messageInput.classList.remove('error');
+      authorInput.classList.remove('error');
+
+      if (!config.messageRequired && !messageText && !imageUrl) {
         showMessage('Please enter either a message or an image URL.', 'error');
         return;
       }
 
-      // If an image URL is provided, validate it again before submission
       if (imageUrl) {
         try {
           new URL(imageUrl);
@@ -576,23 +776,26 @@
         }
       }
 
-      // Disable button during submission
       submitBtn.disabled = true;
       submitBtn.textContent = 'Sending...';
 
-      // Build webhook URL - NO /webhook suffix!
-      const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${pluginId}`;
-
-      // Get current UTC timestamp
+      const webhookUrl = `https://usetrmnl.com/api/custom_plugins/${config.pluginId}`;
       const timestampUtc = new Date().toISOString();
+
+      // Create new message object
+      const newMessage = {
+        message: messageText,
+        author: authorText,
+        image_url: imageUrl,
+        timestamp_utc: timestampUtc
+      };
 
       const payload = {
         merge_variables: {
-          message: messageText,
-          image_url: imageUrl,
-          author: authorText,
-          timestamp_utc: timestampUtc
-        }
+          messages: [newMessage]
+        },
+        merge_strategy: "stream",
+        stream_limit: 50
       };
 
       console.log('Sending to:', webhookUrl);
@@ -611,17 +814,17 @@
 
         if (response.ok) {
           showMessage('✓ Message sent successfully!', 'success');
-          // Save submission timestamp for rate limiting
-          saveLastSubmission();
-          // Update rate limit UI
-          checkRateLimit();
+
+          // Refresh last message display
+          const lastMessage = await fetchLastMessage();
+          displayLastMessage(lastMessage);
+          checkCanSendBasedOnLastMessage(lastMessage);
 
           // Clear form but keep author
           messageInput.value = '';
           imageUrlInput.value = '';
           charCount.textContent = '0';
 
-          // Reset image preview and validation
           imageValidation.className = 'validation';
           imagePreview.className = 'image-preview';
           imagePreview.innerHTML = '';
@@ -639,7 +842,6 @@
       }
     });
 
-    // Initialize the form when page loads
     document.addEventListener('DOMContentLoaded', initializeForm);
   </script>
 </body>
