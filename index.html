@@ -267,114 +267,6 @@
       font-weight: 500;
     }
 
-    .image-picker-container {
-      margin-top: 15px;
-      border-top: 1px solid #e0e0e0;
-      padding-top: 15px;
-    }
-
-    .image-picker-header {
-      font-size: 13px;
-      color: #666;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .image-search {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-      font-size: 14px;
-      margin-bottom: 10px;
-    }
-
-    .image-search:focus {
-      outline: none;
-      border-color: #667eea;
-    }
-
-    .image-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 10px;
-      max-height: 300px;
-      overflow-y: auto;
-      padding: 5px;
-    }
-
-    .image-option {
-      aspect-ratio: 1;
-      border-radius: 8px;
-      overflow: hidden;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: all 0.2s;
-      position: relative;
-    }
-
-    .image-option:hover {
-      transform: scale(1.05);
-      border-color: #667eea;
-    }
-
-    .image-option.selected {
-      border-color: #667eea;
-      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
-    }
-
-    .image-option img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-    }
-
-    .image-option-check {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      background: #667eea;
-      color: white;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-    }
-
-    .image-option.selected .image-option-check {
-      display: flex;
-    }
-
-    .toggle-picker {
-      background: none;
-      border: none;
-      color: #667eea;
-      cursor: pointer;
-      font-size: 13px;
-      padding: 4px 8px;
-      text-decoration: underline;
-      width: auto;
-    }
-
-    .toggle-picker:hover {
-      color: #764ba2;
-      transform: none;
-      box-shadow: none;
-    }
-
-    .no-results {
-      text-align: center;
-      padding: 20px;
-      color: #999;
-      font-size: 14px;
-    }
-
     .mode-selector {
       display: flex;
       gap: 10px;
@@ -402,12 +294,114 @@
       background: #f0f4ff;
       color: #667eea;
     }
+
+    .canvas-container {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .canvas-container.show {
+      display: block;
+    }
+
+    #drawingCanvas {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: crosshair;
+      touch-action: none;
+      width: 100%;
+      display: block;
+    }
+
+    .canvas-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .canvas-controls button {
+      flex: 1;
+      min-width: 100px;
+      padding: 8px;
+      font-size: 14px;
+    }
+
+    .color-picker {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .color-option {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 2px solid #e0e0e0;
+      transition: transform 0.2s;
+    }
+
+    .color-option:hover {
+      transform: scale(1.1);
+    }
+
+    .color-option.active {
+      border-color: #667eea;
+      border-width: 3px;
+    }
+
+    .brush-size {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .brush-size input {
+      flex: 1;
+    }
+
+    .size-indicator {
+      min-width: 40px;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    .webhook-override {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+
+    .webhook-override h3 {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #495057;
+    }
+
+    .size-info {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .size-info.warning {
+      color: #f39c12;
+    }
+
+    .size-info.error {
+      color: #e74c3c;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>📬 Leave a Message</h1>
-    <p class="subtitle">Your message or image will appear on the TRMNL display</p>
+    <p class="subtitle">Your message, image, or drawing will appear on the TRMNL display</p>
 
     <div id="lastMessageCard" class="last-message-card" style="display: none;">
       <div class="last-message-header">Latest Message</div>
@@ -419,6 +413,7 @@
       <div class="mode-selector">
         <button type="button" class="mode-button active" data-mode="message">💬 Message</button>
         <button type="button" class="mode-button" data-mode="image">🖼️ Image</button>
+        <button type="button" class="mode-button" data-mode="draw">✏️ Draw</button>
       </div>
 
       <!-- Message Mode -->
@@ -467,20 +462,6 @@
           <div style="font-size: 12px; color: #666; margin-top: 4px;">
             Add a link to an image to display with your message
           </div>
-
-          <!-- Image Picker -->
-          <div class="image-picker-container" id="imagePicker">
-            <div class="image-picker-header">
-              <span>Or choose an image:</span>
-              <button type="button" class="toggle-picker" id="togglePicker">Hide</button>
-            </div>
-            <input
-              type="text"
-              class="image-search"
-              id="imageSearch"
-              placeholder="Search images (e.g., nature, art, abstract...)">
-            <div class="image-grid" id="imageGrid"></div>
-          </div>
         </div>
 
         <div class="form-group">
@@ -498,9 +479,67 @@
         </div>
       </div>
 
+      <!-- Draw Mode -->
+      <div id="drawMode" class="mode-content" style="display: none;">
+        <div class="form-group">
+          <label>Draw Your Message</label>
+          <div class="canvas-container show">
+            <canvas id="drawingCanvas" width="400" height="300"></canvas>
+            <div class="color-picker">
+              <div class="color-option active" data-color="#000000" style="background: #000000;"></div>
+              <div class="color-option" data-color="#ffffff" style="background: #ffffff; border-color: #ccc;"></div>
+              <div class="color-option" data-color="#667eea" style="background: #667eea;"></div>
+              <div class="color-option" data-color="#e74c3c" style="background: #e74c3c;"></div>
+              <div class="color-option" data-color="#27ae60" style="background: #27ae60;"></div>
+              <div class="color-option" data-color="#f39c12" style="background: #f39c12;"></div>
+            </div>
+            <div class="brush-size">
+              <label style="margin: 0;">Brush Size:</label>
+              <input type="range" id="brushSize" min="1" max="20" value="3">
+              <span class="size-indicator" id="sizeIndicator">3px</span>
+            </div>
+            <div class="canvas-controls">
+              <button type="button" id="clearCanvas">Clear</button>
+              <button type="button" id="undoCanvas">Undo</button>
+            </div>
+            <div class="size-info" id="canvasSizeInfo"></div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="authorDraw">
+            Your Name
+            <span class="optional-label" id="authorDrawOptionalLabel">(optional)</span>
+            <span class="required-asterisk" id="authorDrawRequiredLabel" style="display: none;">*</span>
+          </label>
+          <input
+            type="text"
+            id="authorDraw"
+            name="authorDraw"
+            maxlength="50"
+            placeholder="Leave blank for anonymous">
+        </div>
+      </div>
+
       <button type="submit" id="submitBtn">Send Message</button>
       <div class="rate-limit-info" id="rateLimitInfo"></div>
     </form>
+
+    <!-- Webhook Override Section -->
+    <div class="webhook-override">
+      <h3>🔧 Advanced Settings</h3>
+      <div class="form-group" style="margin-bottom: 0;">
+        <label for="webhookOverride">Override Plugin ID / Webhook URL</label>
+        <input
+          type="text"
+          id="webhookOverride"
+          name="webhookOverride"
+          placeholder="Paste plugin ID or webhook URL here">
+        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+          Leave blank to use the configuration from the QR code
+        </div>
+      </div>
+    </div>
 
     <div id="statusMessage" class="message"></div>
     <div id="debugInfo" class="debug" style="display: none;"></div>
@@ -515,7 +554,7 @@
   const MAX_TOTAL_SIZE = 2000;
   const STREAM_LIMIT = 2;
   const MAX_MESSAGE_LENGTH = 280;
-  const MAX_DRAWING_SIZE_KB = 50; // Max size for SVG drawing in KB
+  const MAX_IMAGE_SIZE_KB = 800; // Max size for drawing in KB (800KB for base64 after compression)
 
   const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -524,7 +563,9 @@
   const messageInput = document.getElementById('message');
   const authorInput = document.getElementById('author');
   const authorImageInput = document.getElementById('authorImage');
+  const authorDrawInput = document.getElementById('authorDraw');
   const imageUrlInput = document.getElementById('imageUrl');
+  const webhookOverride = document.getElementById('webhookOverride');
   const submitBtn = document.getElementById('submitBtn');
   const statusMessage = document.getElementById('statusMessage');
   const charCount = document.getElementById('charCount');
@@ -540,56 +581,29 @@
   const modeButtons = document.querySelectorAll('.mode-button');
   const messageMode = document.getElementById('messageMode');
   const imageMode = document.getElementById('imageMode');
+  const drawMode = document.getElementById('drawMode');
   let currentMode = 'message';
 
-  // Image Picker
-  const imagePicker = document.getElementById('imagePicker');
-  const imageGrid = document.getElementById('imageGrid');
-  const imageSearch = document.getElementById('imageSearch');
-  const togglePicker = document.getElementById('togglePicker');
-  let pickerVisible = true;
+  // Canvas setup
+  const canvas = document.getElementById('drawingCanvas');
+  const ctx = canvas.getContext('2d');
+  const brushSize = document.getElementById('brushSize');
+  const sizeIndicator = document.getElementById('sizeIndicator');
+  const canvasSizeInfo = document.getElementById('canvasSizeInfo');
+  const colorOptions = document.querySelectorAll('.color-option');
 
-  // Curated image library with categories
-  const imageLibrary = [
-    // Nature
-    { url: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800', tags: ['nature', 'mountain', 'landscape', 'sky'] },
-    { url: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800', tags: ['nature', 'forest', 'trees', 'green'] },
-    { url: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=800', tags: ['nature', 'field', 'landscape', 'sunset'] },
-    { url: 'https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800', tags: ['nature', 'ocean', 'water', 'sunset'] },
-    { url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=800', tags: ['nature', 'fog', 'mountain', 'landscape'] },
+  let isDrawing = false;
+  let currentColor = '#000000';
+  let currentBrushSize = 3;
+  let drawingHistory = [];
+  let currentStep = -1;
 
-    // Abstract & Patterns
-    { url: 'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=800', tags: ['abstract', 'colors', 'pattern', 'art'] },
-    { url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=800', tags: ['abstract', 'colors', 'gradient', 'art'] },
-    { url: 'https://images.unsplash.com/photo-1550859492-d5da9d8e45f3?w=800', tags: ['abstract', 'pattern', 'geometric', 'art'] },
-    { url: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?w=800', tags: ['abstract', 'gradient', 'colors', 'art'] },
-
-    // Urban & Architecture
-    { url: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=800', tags: ['urban', 'city', 'building', 'architecture'] },
-    { url: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800', tags: ['urban', 'city', 'night', 'lights'] },
-    { url: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800', tags: ['urban', 'city', 'architecture', 'skyline'] },
-
-    // Minimalist
-    { url: 'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=800', tags: ['minimalist', 'simple', 'clean', 'gradient'] },
-    { url: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800', tags: ['minimalist', 'simple', 'abstract', 'pattern'] },
-
-    // Space & Sky
-    { url: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800', tags: ['space', 'stars', 'night', 'sky'] },
-    { url: 'https://images.unsplash.com/photo-1506318137071-a8e063b4bec0?w=800', tags: ['space', 'aurora', 'night', 'sky'] },
-
-    // Seasonal
-    { url: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?w=800', tags: ['autumn', 'fall', 'leaves', 'nature'] },
-    { url: 'https://images.unsplash.com/photo-1511131341194-24e2eeeebb09?w=800', tags: ['winter', 'snow', 'mountain', 'nature'] },
-    { url: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?w=800', tags: ['spring', 'flowers', 'nature', 'bloom'] },
-
-    // Animals
-    { url: 'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?w=800', tags: ['animal', 'cat', 'pet', 'cute'] },
-    { url: 'https://images.unsplash.com/photo-1543466835-00a7907e9de1?w=800', tags: ['animal', 'dog', 'pet', 'cute'] },
-
-    // Food & Drink
-    { url: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800', tags: ['food', 'coffee', 'drink', 'cafe'] },
-    { url: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800', tags: ['food', 'meal', 'dinner', 'restaurant'] },
-  ];
+  // Initialize canvas
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  saveCanvasState();
 
   // Get URL parameters
   const urlParams = new URLSearchParams(window.location.search);
@@ -646,6 +660,22 @@
   }
 
   function getPluginConfig() {
+    // Check for webhook override first
+    const overrideValue = webhookOverride.value.trim();
+    if (overrideValue) {
+      const pluginId = extractPluginId(overrideValue);
+      if (pluginId) {
+        return {
+          config: {
+            pluginId: pluginId,
+            authorRequired: false,
+            messageRequired: false
+          },
+          source: 'manual_override'
+        };
+      }
+    }
+
     let config = null;
     let source = 'none';
 
@@ -709,15 +739,135 @@
 
       messageMode.style.display = 'none';
       imageMode.style.display = 'none';
+      drawMode.style.display = 'none';
 
       if (mode === 'message') {
         messageMode.style.display = 'block';
       } else if (mode === 'image') {
         imageMode.style.display = 'block';
+      } else if (mode === 'draw') {
+        drawMode.style.display = 'block';
+        updateCanvasSize();
       }
 
       currentMode = mode;
     });
+  });
+
+  // Canvas drawing
+  function saveCanvasState() {
+    currentStep++;
+    if (currentStep < drawingHistory.length) {
+      drawingHistory = drawingHistory.slice(0, currentStep);
+    }
+    drawingHistory.push(canvas.toDataURL());
+    updateCanvasSize();
+  }
+
+  function restoreCanvasState(step) {
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      updateCanvasSize();
+    };
+    img.src = drawingHistory[step];
+  }
+
+  function getCanvasDataURL(quality = 0.7) {
+    // Try to compress as JPEG first for smaller size
+    const jpegData = canvas.toDataURL('image/jpeg', quality);
+    const pngData = canvas.toDataURL('image/png');
+
+    // Return whichever is smaller
+    return jpegData.length < pngData.length ? jpegData : pngData;
+  }
+
+  function updateCanvasSize() {
+    const dataUrl = getCanvasDataURL();
+    const sizeKB = Math.round((dataUrl.length * 3/4) / 1024);
+
+    canvasSizeInfo.textContent = `Drawing size: ${sizeKB} KB`;
+
+    if (sizeKB > MAX_IMAGE_SIZE_KB) {
+      canvasSizeInfo.className = 'size-info error';
+      canvasSizeInfo.textContent += ` (exceeds ${MAX_IMAGE_SIZE_KB} KB limit - please simplify your drawing)`;
+    } else if (sizeKB > MAX_IMAGE_SIZE_KB * 0.8) {
+      canvasSizeInfo.className = 'size-info warning';
+      canvasSizeInfo.textContent += ' (approaching size limit)';
+    } else {
+      canvasSizeInfo.className = 'size-info';
+    }
+  }
+
+  function startDrawing(e) {
+    isDrawing = true;
+    draw(e);
+  }
+
+  function stopDrawing() {
+    if (isDrawing) {
+      isDrawing = false;
+      ctx.beginPath();
+      saveCanvasState();
+    }
+  }
+
+  function draw(e) {
+    if (!isDrawing) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+
+    ctx.strokeStyle = currentColor;
+    ctx.lineWidth = currentBrushSize;
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  }
+
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseout', stopDrawing);
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    startDrawing(e);
+  });
+  canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    draw(e);
+  });
+  canvas.addEventListener('touchend', stopDrawing);
+
+  colorOptions.forEach(option => {
+    option.addEventListener('click', () => {
+      colorOptions.forEach(opt => opt.classList.remove('active'));
+      option.classList.add('active');
+      currentColor = option.dataset.color;
+    });
+  });
+
+  brushSize.addEventListener('input', () => {
+    currentBrushSize = brushSize.value;
+    sizeIndicator.textContent = `${currentBrushSize}px`;
+  });
+
+  document.getElementById('clearCanvas').addEventListener('click', () => {
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveCanvasState();
+  });
+
+  document.getElementById('undoCanvas').addEventListener('click', () => {
+    if (currentStep > 0) {
+      currentStep--;
+      restoreCanvasState(currentStep);
+    }
   });
 
   // Character counter
@@ -739,7 +889,7 @@
       if (authorValue) {
         localStorage.setItem(AUTHOR_STORAGE_KEY, authorValue);
         // Sync to other author inputs
-        [authorInput, authorImageInput].forEach(inp => {
+        [authorInput, authorImageInput, authorDrawInput].forEach(inp => {
           if (inp !== input) inp.value = authorValue;
         });
       } else {
@@ -750,6 +900,7 @@
 
   setupAuthorSync(authorInput);
   setupAuthorSync(authorImageInput);
+  setupAuthorSync(authorDrawInput);
 
   // Image URL validation
   let imageValidationTimeout;
@@ -803,9 +954,6 @@
 
       imagePreview.innerHTML = `<img src="${url}" alt="Image preview">`;
       imagePreview.className = 'image-preview show';
-
-      // Clear any selected image in picker
-      document.querySelectorAll('.image-option').forEach(opt => opt.classList.remove('selected'));
     };
 
     img.onerror = function() {
@@ -815,76 +963,6 @@
     };
 
     img.src = url;
-  }
-
-  // Image Picker Functions
-  function renderImageGrid(images) {
-    if (images.length === 0) {
-      imageGrid.innerHTML = '<div class="no-results">No images found. Try a different search term.</div>';
-      return;
-    }
-
-    imageGrid.innerHTML = images.map(img => `
-      <div class="image-option" data-url="${img.url}">
-        <img src="${img.url}" alt="Image option" loading="lazy">
-        <div class="image-option-check">✓</div>
-      </div>
-    `).join('');
-
-    // Add click handlers
-    document.querySelectorAll('.image-option').forEach(option => {
-      option.addEventListener('click', function() {
-        const url = this.dataset.url;
-
-        // Update selected state
-        document.querySelectorAll('.image-option').forEach(opt => opt.classList.remove('selected'));
-        this.classList.add('selected');
-
-        // Set the URL in the input
-        imageUrlInput.value = url;
-
-        // Trigger validation
-        validateImageUrl(url);
-      });
-    });
-  }
-
-  function filterImages(searchTerm) {
-    if (!searchTerm) {
-      return imageLibrary;
-    }
-
-    const term = searchTerm.toLowerCase();
-    return imageLibrary.filter(img =>
-      img.tags.some(tag => tag.includes(term))
-    );
-  }
-
-  // Initialize image picker
-  function initializeImagePicker() {
-    renderImageGrid(imageLibrary);
-
-    // Search functionality
-    imageSearch.addEventListener('input', (e) => {
-      const searchTerm = e.target.value.trim();
-      const filteredImages = filterImages(searchTerm);
-      renderImageGrid(filteredImages);
-    });
-
-    // Toggle picker visibility
-    togglePicker.addEventListener('click', () => {
-      pickerVisible = !pickerVisible;
-
-      if (pickerVisible) {
-        imageGrid.style.display = 'grid';
-        imageSearch.style.display = 'block';
-        togglePicker.textContent = 'Hide';
-      } else {
-        imageGrid.style.display = 'none';
-        imageSearch.style.display = 'none';
-        togglePicker.textContent = 'Show';
-      }
-    });
   }
 
   function showMessage(text, type) {
@@ -1033,8 +1111,11 @@
       document.getElementById('authorRequiredLabel').style.display = 'inline';
       document.getElementById('authorImageOptionalLabel').style.display = 'none';
       document.getElementById('authorImageRequiredLabel').style.display = 'inline';
+      document.getElementById('authorDrawOptionalLabel').style.display = 'none';
+      document.getElementById('authorDrawRequiredLabel').style.display = 'inline';
       authorInput.required = true;
       authorImageInput.required = true;
+      authorDrawInput.required = true;
     }
 
     if (config.messageRequired) {
@@ -1049,6 +1130,7 @@
     if (savedAuthor) {
       authorInput.value = savedAuthor;
       authorImageInput.value = savedAuthor;
+      authorDrawInput.value = savedAuthor;
     }
 
     // Fetch and display last message
@@ -1061,7 +1143,8 @@
 
     // Show debug info
     let sourceText = source;
-    if (source === 'url_encoded') sourceText = 'Encoded URL (saved)';
+    if (source === 'manual_override') sourceText = '⚙️ Manual Override';
+    else if (source === 'url_encoded') sourceText = 'Encoded URL (saved)';
     else if (source === 'url_legacy') sourceText = 'Legacy URL (saved)';
     else if (source === 'localStorage') sourceText = 'localStorage';
 
@@ -1081,10 +1164,12 @@
       setTimeout(() => {
         statusMessage.classList.remove('show');
       }, 3000);
+    } else if (source === 'manual_override') {
+      showMessage('✓ Using manually provided configuration', 'success');
+      setTimeout(() => {
+        statusMessage.classList.remove('show');
+      }, 3000);
     }
-
-    // Initialize image picker
-    initializeImagePicker();
   }
 
   function handleInvalidConfig() {
@@ -1093,9 +1178,14 @@
     } else if (legacyWebhookParam) {
       showMessage('⚠ Invalid plugin ID or webhook URL format', 'error');
     } else {
-      showMessage('⚠ No configuration detected. Please scan the QR code to access this form.', 'error');
+      showMessage('⚠ No configuration detected. Please enter a Plugin ID or Webhook URL below, or scan the QR code.', 'warning');
     }
   }
+
+  // Webhook override change handler
+  webhookOverride.addEventListener('input', () => {
+    initializeForm();
+  });
 
   // Form submission
   form.addEventListener('submit', async (e) => {
@@ -1110,6 +1200,7 @@
     let messageText = '';
     let authorText = '';
     let imageUrl = '';
+    let imageData = '';
 
     if (currentMode === 'message') {
       messageText = messageInput.value.trim();
@@ -1140,6 +1231,15 @@
         showMessage('Please enter a valid image URL.', 'error');
         return;
       }
+    } else if (currentMode === 'draw') {
+      authorText = authorDrawInput.value.trim() || 'Anonymous';
+      imageData = getCanvasDataURL(0.7);
+
+      const sizeKB = Math.round((imageData.length * 3/4) / 1024);
+      if (sizeKB > MAX_IMAGE_SIZE_KB) {
+        showMessage(`Drawing is too large (${sizeKB} KB). Please simplify your drawing or use fewer colors.`, 'error');
+        return;
+      }
     }
 
     if (config.authorRequired && authorText === 'Anonymous') {
@@ -1156,7 +1256,7 @@
       const newMessage = {
         message: messageText || undefined,
         author: authorText,
-        image_url: imageUrl || undefined,
+        image_url: imageUrl || imageData || undefined,
         timestamp_utc: new Date().toISOString()
       };
 
@@ -1239,6 +1339,15 @@
         imageValidation.className = 'validation';
         imagePreview.className = 'image-preview';
         imagePreview.innerHTML = '';
+
+        // Clear canvas
+        if (currentMode === 'draw') {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          drawingHistory = [];
+          currentStep = -1;
+          saveCanvasState();
+        }
       } else {
         const errorText = await response.text();
         console.error('Error response:', errorText);
