@@ -105,4 +105,4 @@ custom_fields:
   help_text: Skip this screen in the playlist if the most recent message is older than X hours. Set to 0 to disable (never skip).
   optional: true
 name: "\U0001F4ECLeave a message"
-refresh_interval: 15
+refresh_interval: 5

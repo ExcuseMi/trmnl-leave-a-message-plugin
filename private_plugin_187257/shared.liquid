@@ -5,19 +5,19 @@ assign show_advanced = trmnl.plugin_settings.custom_fields_values.show_advanced 
 
 # Advanced options with defaults
 if show_advanced == "yes"
-  assign scan_message = trmnl.plugin_settings.custom_fields_values.custom_scan_message
-  assign show_qr_code = trmnl.plugin_settings.custom_fields_values.show_qr_code | default: "show"
-  assign show_second_message = trmnl.plugin_settings.custom_fields_values.show_second_message | default: "show"
-  assign author_required = trmnl.plugin_settings.custom_fields_values.author_required | default: "optional"
-  assign message_required = trmnl.plugin_settings.custom_fields_values.message_required | default: "optional"
-  assign skip_if_older_than = trmnl.plugin_settings.custom_fields_values.skip_if_older_than | default: 0
+assign scan_message = trmnl.plugin_settings.custom_fields_values.custom_scan_message
+assign show_qr_code = trmnl.plugin_settings.custom_fields_values.show_qr_code | default: "show"
+assign show_second_message = trmnl.plugin_settings.custom_fields_values.show_second_message | default: "show"
+assign author_required = trmnl.plugin_settings.custom_fields_values.author_required | default: "optional"
+assign message_required = trmnl.plugin_settings.custom_fields_values.message_required | default: "optional"
+assign skip_if_older_than = trmnl.plugin_settings.custom_fields_values.skip_if_older_than | default: 0
 else
-  assign scan_message = "**SCAN** TO\n\n LEAVE A\n\n**MESSAGE**"
-  assign show_qr_code = "show"
-  assign show_second_message = "show"
-  assign author_required = "optional"
-  assign message_required = "optional"
-  assign skip_if_older_than = 0
+assign scan_message = "**SCAN** TO\n\n LEAVE A\n\n**MESSAGE**"
+assign show_qr_code = "show"
+assign show_second_message = "show"
+assign author_required = "optional"
+assign message_required = "optional"
+assign skip_if_older_than = 0
 endif
 
 # Extract and validate plugin UUID
@@ -25,26 +25,26 @@ assign plugin_uuid = ""
 assign is_valid = false
 
 if webhook_url contains "usetrmnl.com/api/custom_plugins/"
-  assign url_parts = webhook_url | split: "custom_plugins/"
-  assign uuid_with_suffix = url_parts[1]
-  assign uuid_parts = uuid_with_suffix | split: "/"
-  assign plugin_uuid = uuid_parts[0]
-  assign is_valid = true
+assign url_parts = webhook_url | split: "custom_plugins/"
+assign uuid_with_suffix = url_parts[1]
+assign uuid_parts = uuid_with_suffix | split: "/"
+assign plugin_uuid = uuid_parts[0]
+assign is_valid = true
 elsif webhook_url contains "-"
-  assign uuid_length = webhook_url | size
-  if uuid_length == 36
-    assign plugin_uuid = webhook_url
-    assign is_valid = true
-  endif
+assign uuid_length = webhook_url | size
+if uuid_length == 36
+assign plugin_uuid = webhook_url
+assign is_valid = true
+endif
 endif
 
 # Build configuration object for URL encoding
 assign config_json = '{"id":"' | append: plugin_uuid | append: '"'
 if author_required == "required"
-  assign config_json = config_json | append: ',"ar":1'
+assign config_json = config_json | append: ',"ar":1'
 endif
 if message_required == "required"
-  assign config_json = config_json | append: ',"mr":1'
+assign config_json = config_json | append: ',"mr":1'
 endif
 assign config_json = config_json | append: '}'
 
@@ -63,224 +63,261 @@ assign expiry_seconds = expiry_hours | times: 3600
 
 # Filter messages with valid timestamps and check expiry
 for msg in all_messages
-  if msg.timestamp_utc != blank and expiry_hours != blank
-    assign message_timestamp = msg.timestamp_utc | date: "%s" | times: 1
-    assign time_diff = now_timestamp | minus: message_timestamp
-    
-    if time_diff <= expiry_seconds and time_diff >= 0
-      if active_messages == ""
-        # First message - create array with slice
-        assign active_messages = all_messages | slice: forloop.index0, 1
-      else
-        # Subsequent messages - use concat with slice
-        assign new_message = all_messages | slice: forloop.index0, 1
-        assign active_messages = active_messages | concat: new_message
-      endif
-    endif
-  endif
-endfor
-assign active_messages = active_messages | sort: "timestamp_utc" | reverse
-assign message_count = active_messages | size
+if msg.timestamp_utc != blank and expiry_hours != blank
+assign message_timestamp = msg.timestamp_utc | date: "%s" | times: 1
+assign time_diff = now_timestamp | minus: message_timestamp
 
-# Get first two messages
-assign first_message = active_messages | first
-assign second_message = nil
-if message_count > 1
+if time_diff <= expiry_seconds and time_diff >= 0
+  if active_messages == ""
+  # First message - create array with slice
+  assign active_messages = all_messages | slice: forloop.index0, 1
+  else
+  # Subsequent messages - use concat with slice
+  assign new_message = all_messages | slice: forloop.index0, 1
+  assign active_messages = active_messages | concat: new_message
+  endif
+  endif
+  endif
+  endfor
+  assign active_messages = active_messages | sort: "timestamp_utc" | reverse
+  assign message_count = active_messages | size
+
+  # Get first two messages
+  assign first_message = active_messages | first
+  assign second_message = nil
+  if message_count > 1
   assign second_message = active_messages[1]
-endif
-
-# Check if we should skip display based on message age
-assign should_skip = false
-if skip_if_older_than > 0
-  if message_count == 0
-    # No messages at all - skip
-    assign should_skip = true
-  elsif first_message.timestamp_utc != blank
-    # Check if most recent message is too old
-    assign first_message_timestamp = first_message.timestamp_utc | date: "%s" | times: 1
-    assign time_since_last = now_timestamp | minus: first_message_timestamp
-    assign skip_threshold_seconds = skip_if_older_than | times: 3600
-    
-    if time_since_last > skip_threshold_seconds
-      assign should_skip = true
-    endif
   endif
-endif
-%}
 
-<style>
-.grayscale { filter: grayscale(100%); -webkit-filter: grayscale(100%); }
+  # Check if we should skip display based on message age
+  assign should_skip = false
+  if skip_if_older_than > 0
+  if message_count == 0
+  # No messages at all - skip
+  assign should_skip = true
+  elsif first_message.timestamp_utc != blank
+  # Check if most recent message is too old
+  assign first_message_timestamp = first_message.timestamp_utc | date: "%s" | times: 1
+  assign time_since_last = now_timestamp | minus: first_message_timestamp
+  assign skip_threshold_seconds = skip_if_older_than | times: 3600
 
-#messageContainer {
-  width: 100%;
-  max-height: 100%;
-}
+  if time_since_last > skip_threshold_seconds
+  assign should_skip = true
+  endif
+  endif
+  endif
+  %}
 
-.message-image {
-  object-fit: contain;
-  border-radius: 8px;
-  max-height: 100%;
-}
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
 
-.image-horizontal {
-  max-width: 75%;
-}
+    .grayscale { filter: grayscale(100%); -webkit-filter: grayscale(100%); }
 
-.image-vertical {
-  max-width: 100%;
-}
-</style>
+    /* Remove grayscale from text content to ensure visibility */
+    .grayscale .value,
+    .grayscale .description {
+      filter: none !important;
+      -webkit-filter: none !important;
+    }
 
-<script>
-  function layoutImage() {
-    const img = document.getElementById('messageImage');
-    const container = document.getElementById('messageContainer');
-    const textContainer = document.getElementById('textContainer');
-    if (img && container && textContainer) {
+    /* Handwriting font for messages */
+    .content,
+    .description,
+    .text,
+    .richtext {
+      font-family: 'Caveat', cursive !important;
+      font-weight: 400;
+    }
+
+    /* Slightly bolder for emphasis */
+    .content strong,
+    .description strong {
+      font-weight: 700;
+    }
+
+    .message-image {
+      object-fit: contain;
+      border-radius: 8px;
+      max-height: 60vh;
+      max-width: 100%;
+    }
+
+    .image-horizontal {
+      max-width: 40%;
+      max-height: 50vh;
+    }
+
+    .image-vertical {
+      max-width: 80%;
+      max-height: 50vh;
+    }
+
+    #messageContainer.flex--row {
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    #messageContainer.flex--row #textContainer {
+      flex: 1;
+      min-width: 0;
+    }
+  </style>
+
+  <script>
+    function layoutImage() {
+      const img = document.getElementById('messageImage');
+      const container = document.getElementById('messageContainer');
+      const textContainer = document.getElementById('textContainer');
+
+      // Only proceed if all elements exist
+      if (!img || !container || !textContainer) {
+        console.log('Missing required elements for layout');
+        return;
+      }
+
+      // Reset classes first
+      img.classList.remove('image-horizontal', 'image-vertical');
+      container.classList.remove('flex--row', 'flex--col', 'flex--center', 'flex--center-y');
+
+      // If no image or image failed to load, use default column layout
+      if (!img.complete || img.naturalWidth === 0) {
+        console.log('Image not loaded, using default layout');
+        container.classList.add('flex--col', 'flex--center');
+        return;
+      }
+
       const aspectRatio = img.naturalWidth / img.naturalHeight;
+      console.log('Image aspect ratio:', aspectRatio);
+
       if (aspectRatio >= 1) {
-        // Horizontal/landscape image (wider than tall)
+        // Horizontal/landscape image (wider than tall) - stack vertically
+        console.log('Using horizontal layout');
         img.classList.add('image-horizontal');
-        img.classList.remove('image-vertical');
-        container.classList.remove('layout--col');
-        container.classList.add('layout--row');
-        container.classList.add('layout--center-y');
-        textContainer.style.width = '60%';
-        textContainer.style.maxWidth = '60%';
+        container.classList.add('flex--col', 'flex--center');
       } else {
-        // Vertical/portrait image (taller than wide)
+        // Vertical/portrait image (taller than wide) - place side-by-side
+        console.log('Using vertical layout');
         img.classList.add('image-vertical');
-        img.classList.remove('image-horizontal');
-        container.classList.remove('layout--row');
-        container.classList.add('layout--col');
-        container.classList.add('layout--center');
-        textContainer.style.width = '';
-        textContainer.style.maxWidth = '';
+        container.classList.add('flex--row', 'flex--center-y');
       }
     }
-  }
-</script>
 
-{% if is_valid %}
-{% if should_skip %}
-<script>
-window.TRMNL_SKIP_DISPLAY = true;
-</script>
-{% endif %}
-<div class="layout layout--col layout--stretch grayscale" style="height: 100%; position: relative;">
-  <div class="layout layout--center" style="min-height: 0; overflow: hidden; flex: 1 1 auto; padding-bottom: 100px;">
-    {% if message_count == 0 %}
-      <div class="layout layout--col layout--center gap-10">
-        <div class="description text--center text--gray-50">
-          No messages yet
-        </div>
-        <div class="description text--xs text--center text--gray-50">
-          Scan the QR code to leave a message
-        </div>
-      </div>
-    
-    {% else %}
-      {% if first_message.image_url != blank %}
-      <div class="layout layout--row gap-20 grayscale" id="messageContainer" style="width: 100%; max-height: 100%;">
-        <img class="image image-dither rounded message-image" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" onload="layoutImage()" />
-        <div class="layout layout--col layout--center gap-10" id="textContainer">
-          <div class="content text--center">
-            {% if first_message.message %}
-            <span data-content-limiter="">{{ first_message.message | markdown_to_html }}</span>
-            {% endif %}
-          </div>
-          {% if first_message.author != blank %}
-          <div class="description text--right">
-            <span class="author-dash">—</span> {{ first_message.author }}
-          </div>
-          {% endif %}
-          {% if first_message.timestamp_utc != blank %}
+    // Also run layout on window load in case image loads slowly
+    window.addEventListener('load', function() {
+      setTimeout(layoutImage, 100);
+    });
+  </script>
+
+  {% if is_valid %}
+  {% if should_skip %}
+  <script>
+    window.TRMNL_SKIP_DISPLAY = true;
+  </script>
+  {% endif %}
+  <div class="layout layout--stretch">
+    <div class="flex flex--col stretch grayscale" data-overflow="true">
+      <!-- Main content area (stretches to fill available space) -->
+      <div class="stretch flex flex--col flex--center">
+        {% if message_count == 0 %}
+        <div class="flex flex--col flex--center gap-10">
           <div class="description text--center text--gray-50">
-            {{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" |l_date: "%d %b, %H:%M", trmnl.user.locale}}
+            No messages yet
+          </div>
+          <div class="description text--xs text--center text--gray-50">
+            Scan the QR code to leave a message
+          </div>
+        </div>
+        {% else %}
+        <!-- Unified message section (with or without image) -->
+        <div class="flex flex--col flex--center gap-10 stretch" id="messageContainer">
+          {% if first_message.image_url != blank %}
+          <img class="image image-dither rounded message-image" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" onload="layoutImage()" onerror="console.log('Image failed to load')" />
+          {% endif %}
+          <div class="richtext richtext--left w--full" id="textContainer">
+            <div class="content content--left text--left text-stroke" data-content-limiter="true">
+              {% if first_message.timestamp_utc != blank %}
+              <div class="label label--small label--underline">
+                {{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
+                {% if first_message.author != blank %}<span class="author-dash">—</span> {{ first_message.author }}{% endif %}
+              </div>
+              {% endif %}
+              {% if first_message.message %}
+              {{ first_message.message | markdown_to_html }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Bottom bar with Previous Message and QR Code -->
+      <div class="shrink-0 flex flex--row gap-20 stretch-x flex--left flex--bottom">
+        <!-- Previous Message (left side) -->
+        {% if second_message and show_second_message == "show" %}
+        <div class="item item--emphasis-1">
+          <div class="meta"></div>
+          <div class="content" data-content-limiter="true">
+            <div class="label label--small label--underline">
+              {{ second_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
+              {% if second_message.author != blank %}<span class="author-dash">—</span> {{ second_message.author }}{% endif %}
+            </div>
+
+            <span class="description" data-clamp="3">
+              {% if second_message.message %}
+              {{ second_message.message | markdown_to_html }}
+              {% else %}
+              [Image message]
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Spacer -->
+        <div class="stretch-x"></div>
+
+        <!-- QR Code (right side) -->
+        <div class="shrink-0 pr--2 h--min-24">
+          {% if show_qr_code == "show" %}
+          <div class="flex flex--row flex--end gap-10">
+            <div class="text text--right text--xs">{{ scan_message | markdown_to_html }}</div>
+            {{ full_qr_url | qr_code: 3, 'l'}}
           </div>
           {% endif %}
         </div>
       </div>
-      {% else %}
-      <div class="layout layout--col layout--center gap-10 layout--stretch">
-        <div class="content text--center">
-          <span data-content-limiter="true">{{ first_message.message | markdown_to_html }}</span>
-        </div>
-        {% if first_message.author != blank %}
-        <div class="description text--right">
-          <span class="author-dash">—</span> {{ first_message.author }}
-        </div>
-        {% endif %}
-        {% if first_message.timestamp_utc != blank %}
-        <div class="description text--center text--gray-50">
-          {{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ"  | l_date: "%d %b, %H:%M", trmnl.user.locale}}
-        </div>
-        {% endif %}
-      </div>
-      {% endif %}
-      
-    {% endif %}
+    </div>
   </div>
-  
-  <!-- Bottom row with Previous Message and QR Code -->
-  <div style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; height: 90px;">
-    <!-- Previous Message (left side) -->
-    {% if second_message and show_second_message == "show" %}
-    <div style="position: absolute; bottom: 0; left: 0; max-width: 40%;">
-      <span class="label label--small">Previous Message</span>
-      <div class="description text--xs" data-overflow-max-height="50" data-clamp="3">
-        {% if second_message.message %}
-          {{ second_message.message | markdown_to_html }}
+  <div class="title_bar">
+    <span class="title">📬 Leave a message</span>
+  </div>
+  {% else %}
+  <div class="layout layout--stretch">
+    <div class="flex flex--col flex--center gap-20 p-20 stretch grayscale">
+      <div class="flex flex--col gap-10 p-20 rounded-8">
+        <div class="title">⚠️ Configuration Required</div>
+        <div class="description">
+          Please provide a valid webhook URL in the plugin settings.
+        </div>
+        <div class="description text--sm">
+          <strong>Expected format:</strong><br>
+          • Full URL: <code>https://usetrmnl.com/api/custom_plugins/YOUR-UUID</code><br>
+          • Or just UUID: <code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code>
+        </div>
+        {% if webhook_url != blank %}
+        <div class="description text--sm">
+          <strong>Current value:</strong> <code>{{ webhook_url }}</code><br>
+          (This doesn't appear to be a valid UUID or webhook URL)
+        </div>
         {% else %}
-          [Image message]
+        <div class="description text--sm">
+          The webhook_url field is empty.
+        </div>
         {% endif %}
       </div>
-      <div class="description text--xs text--gray-50">
-        {% if second_message.author != blank %}
-          <strong>{{ second_message.author }}</strong> •
-        {% else %}
-          <strong>Anonymous</strong> •
-        {% endif %}
-        {{ second_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ"  | l_date: "%d %b, %H:%M", trmnl.user.locale }}
-      </div>
     </div>
-    {% endif %}
-    
-    <!-- QR Code (right side) -->
-    {% if show_qr_code == "show" %}
-    <div style="position: absolute; bottom: 0; right: 0; display: flex; align-items: flex-end; gap: 8px;">
-      <div class="text text--right text--xs">{{ scan_message | markdown_to_html }}</div>
-      {{ full_qr_url | qr_code: 2, 'm'}}
-    </div>
-    {% endif %}
   </div>
-</div>
-
-{% else %}
-<div class="layout layout--stretch layout--col layout--center gap-20 p-20 grayscale">
-  <div class="layout layout--col gap-10 p-20 rounded-8">
-    <div class="title">⚠️ Configuration Required</div>
-    <div class="description">
-      Please provide a valid webhook URL in the plugin settings.
-    </div>
-    <div class="description text--sm">
-      <strong>Expected format:</strong><br>
-      • Full URL: <code>https://usetrmnl.com/api/custom_plugins/YOUR-UUID</code><br>
-      • Or just UUID: <code>xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx</code>
-    </div>
-    {% if webhook_url != blank %}
-    <div class="description text--sm">
-      <strong>Current value:</strong> <code>{{ webhook_url }}</code><br>
-      (This doesn't appear to be a valid UUID or webhook URL)
-    </div>
-    {% else %}
-    <div class="description text--sm">
-      The webhook_url field is empty.
-    </div>
-    {% endif %}
+  <div class="title_bar">
+    <span class="title">⚠️ Setup Required</span>
   </div>
-</div>
-<div class="title_bar">
-  <span class="title">⚠️ Setup Required</span>
-</div>
-{% endif %}
+  {% endif %}
