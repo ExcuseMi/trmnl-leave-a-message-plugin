@@ -124,6 +124,8 @@ if time_diff <= expiry_seconds and time_diff >= 0
     .content,
     .description,
     .text,
+    .value,
+    .label,
     .richtext {
       font-family: 'Caveat', cursive !important;
       font-weight: 400;
@@ -135,163 +137,11 @@ if time_diff <= expiry_seconds and time_diff >= 0
       font-weight: 700;
     }
 
-    .message-image {
-      object-fit: contain;
-      border-radius: 8px;
-      max-height: 60vh;
-      max-width: 100%;
-    }
 
-    .image-horizontal {
-      max-width: 40%;
-      max-height: 50vh;
-    }
-
-    .image-vertical {
-      max-width: 80%;
-      max-height: 50vh;
-    }
-
-    #messageContainer.flex--row {
-      align-items: flex-start;
-      gap: 20px;
-    }
-
-    #messageContainer.flex--row #textContainer {
-      flex: 1;
-      min-width: 0;
-    }
   </style>
 
-  <script>
-    function layoutImage() {
-      const img = document.getElementById('messageImage');
-      const container = document.getElementById('messageContainer');
-      const textContainer = document.getElementById('textContainer');
 
-      // Only proceed if all elements exist
-      if (!img || !container || !textContainer) {
-        console.log('Missing required elements for layout');
-        return;
-      }
-
-      // Reset classes first
-      img.classList.remove('image-horizontal', 'image-vertical');
-      container.classList.remove('flex--row', 'flex--col', 'flex--center', 'flex--center-y');
-
-      // If no image or image failed to load, use default column layout
-      if (!img.complete || img.naturalWidth === 0) {
-        console.log('Image not loaded, using default layout');
-        container.classList.add('flex--col', 'flex--center');
-        return;
-      }
-
-      const aspectRatio = img.naturalWidth / img.naturalHeight;
-      console.log('Image aspect ratio:', aspectRatio);
-
-      if (aspectRatio >= 1) {
-        // Horizontal/landscape image (wider than tall) - stack vertically
-        console.log('Using horizontal layout');
-        img.classList.add('image-horizontal');
-        container.classList.add('flex--col', 'flex--center');
-      } else {
-        // Vertical/portrait image (taller than wide) - place side-by-side
-        console.log('Using vertical layout');
-        img.classList.add('image-vertical');
-        container.classList.add('flex--row', 'flex--center-y');
-      }
-    }
-
-    // Also run layout on window load in case image loads slowly
-    window.addEventListener('load', function() {
-      setTimeout(layoutImage, 100);
-    });
-  </script>
-
-  {% if is_valid %}
-  {% if should_skip %}
-  <script>
-    window.TRMNL_SKIP_DISPLAY = true;
-  </script>
-  {% endif %}
-  <div class="layout layout--stretch">
-    <div class="flex flex--col stretch grayscale" data-overflow="true">
-      <!-- Main content area (stretches to fill available space) -->
-      <div class="stretch flex flex--col flex--center">
-        {% if message_count == 0 %}
-        <div class="flex flex--col flex--center gap-10">
-          <div class="description text--center text--gray-50">
-            No messages yet
-          </div>
-          <div class="description text--xs text--center text--gray-50">
-            Scan the QR code to leave a message
-          </div>
-        </div>
-        {% else %}
-        <!-- Unified message section (with or without image) -->
-        <div class="flex flex--col flex--center gap-10 stretch" id="messageContainer">
-          {% if first_message.image_url != blank %}
-          <img class="image image-dither rounded message-image" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" onload="layoutImage()" onerror="console.log('Image failed to load')" />
-          {% endif %}
-          <div class="richtext richtext--left w--full" id="textContainer">
-            <div class="content content--left text--left text-stroke" data-content-limiter="true">
-              {% if first_message.timestamp_utc != blank %}
-              <div class="label label--small label--underline">
-                {{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
-                {% if first_message.author != blank %}<span class="author-dash">—</span> {{ first_message.author }}{% endif %}
-              </div>
-              {% endif %}
-              {% if first_message.message %}
-              {{ first_message.message | markdown_to_html }}
-              {% endif %}
-            </div>
-          </div>
-        </div>
-        {% endif %}
-      </div>
-
-      <!-- Bottom bar with Previous Message and QR Code -->
-      <div class="shrink-0 flex flex--row gap-20 stretch-x flex--left flex--bottom">
-        <!-- Previous Message (left side) -->
-        {% if second_message and show_second_message == "show" %}
-        <div class="item item--emphasis-1">
-          <div class="meta"></div>
-          <div class="content" data-content-limiter="true">
-            <div class="label label--small label--underline">
-              {{ second_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
-              {% if second_message.author != blank %}<span class="author-dash">—</span> {{ second_message.author }}{% endif %}
-            </div>
-
-            <span class="description" data-clamp="3">
-              {% if second_message.message %}
-              {{ second_message.message | markdown_to_html }}
-              {% else %}
-              [Image message]
-              {% endif %}
-            </span>
-          </div>
-        </div>
-        {% endif %}
-
-        <!-- Spacer -->
-        <div class="stretch-x"></div>
-
-        <!-- QR Code (right side) -->
-        <div class="shrink-0 pr--2 h--min-24">
-          {% if show_qr_code == "show" %}
-          <div class="flex flex--row flex--end gap-10">
-            <div class="text text--right text--xs">{{ scan_message | markdown_to_html }}</div>
-            {{ full_qr_url | qr_code: 3, 'l'}}
-          </div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="title_bar">
-    <span class="title">📬 Leave a message</span>
-  </div>
-  {% else %}
+  {% unless is_valid %}
   <div class="layout layout--stretch">
     <div class="flex flex--col flex--center gap-20 p-20 stretch grayscale">
       <div class="flex flex--col gap-10 p-20 rounded-8">
@@ -320,4 +170,11 @@ if time_diff <= expiry_seconds and time_diff >= 0
   <div class="title_bar">
     <span class="title">⚠️ Setup Required</span>
   </div>
+  {% else %}
+  {% if should_skip %}
+  <script>
+    window.TRMNL_SKIP_DISPLAY = true;
+  </script>
   {% endif %}
+
+  {% endunless %}

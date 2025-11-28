@@ -1,3 +1,80 @@
-<script>
-  setImageSizeForLayout('half_vertical');
-</script>
+{% if is_valid %}
+  <div class="layout layout--stretch">
+    <div class="flex flex--col stretch grayscale" data-overflow="true">
+      <!-- Main content area (stretches to fill available space) -->
+      <div class="stretch flex flex--col flex--center">
+        {% if message_count == 0 %}
+        <div class="flex flex--col flex--center gap-10">
+          <div class="description text--center text--gray-50">
+            No messages yet
+          </div>
+          <div class="description text--xs text--center text--gray-50">
+            Scan the QR code to leave a message
+          </div>
+        </div>
+        {% else %}
+        <!-- Unified message section (with or without image) -->
+        <div class="flex flex--row flex--center gap-10" id="messageContainer">
+          {% if first_message.image_url != blank %}
+          <img class="image image-dither rounded message-image md:w--max-56 md:h--max-56 lg:w--max-96 lg:h-max-96" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" />
+          {% endif %}
+          <div class="richtext richtext--left w--full" id="textContainer">
+            <div class="content content--left text--left text-stroke" data-content-limiter="true">
+              {% if first_message.timestamp_utc != blank %}
+              <div class="label label--small label--underline">
+                {{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
+                {% if first_message.author != blank %}<span class="author-dash">—</span> {{ first_message.author }}{% endif %}
+              </div>
+              {% endif %}
+              {% if first_message.message %}
+              {{ first_message.message | markdown_to_html }}
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Bottom bar with Previous Message and QR Code -->
+      <div class="shrink-0 flex flex--row gap-20 stretch-x flex--left flex--bottom">
+        <!-- Previous Message (left side) -->
+        {% if second_message and show_second_message == "show" %}
+        <div class="item item--emphasis-1">
+          <div class="meta"></div>
+          <div class="content" data-content-limiter="true">
+            <div class="label label--small label--underline">
+              {{ second_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
+              {% if second_message.author != blank %}<span class="author-dash">—</span> {{ second_message.author }}{% endif %}
+            </div>
+
+            <span class="description" data-clamp="3">
+              {% if second_message.message %}
+              {{ second_message.message | markdown_to_html }}
+              {% else %}
+              [Image message]
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Spacer -->
+        <div class="stretch-x"></div>
+
+        <!-- QR Code (right side) -->
+        <div class="shrink-0 pr--2 h--min-24">
+          {% if show_qr_code == "show" %}
+          <div class="flex flex--row flex--end gap-10">
+            <div class="text text--right text--xs">{{ scan_message | markdown_to_html }}</div>
+            {{ full_qr_url | qr_code: 3, 'l'}}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="title_bar">
+    <img src="https://raw.githubusercontent.com/ExcuseMi/trmnl-leave-a-message-plugin/refs/heads/main/images/message.png" class="image image-dither" />
+    <span class="title"> Leave a message {{full_qr_url }}</span>
+  </div>
+{% endif %}
