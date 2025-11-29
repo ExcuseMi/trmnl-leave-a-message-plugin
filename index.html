@@ -102,7 +102,6 @@ const messageOptionalLabel = document.getElementById('messageOptionalLabel');
 const messageRequiredLabel = document.getElementById('messageRequiredLabel');
 const authorOptionalLabel = document.getElementById('authorOptionalLabel');
 const authorRequiredLabel = document.getElementById('authorRequiredLabel');
-
 const RATE_LIMIT_MINUTES = 5;
 const RATE_LIMIT_MS = RATE_LIMIT_MINUTES*60*1000;
 const AUTHOR_STORAGE_KEY = 'message_author';
@@ -112,6 +111,7 @@ const MAX_TOTAL_SIZE = 2000;
 const STREAM_LIMIT = 2;
 const MAX_MESSAGE_LENGTH = 280;
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+let countdownInterval = null;
 
 // Helper: parse timestamp without milliseconds
 function parseTimestampWithoutMs(ts){return ts?new Date(ts.split('.')[0]+'Z'):new Date();}
@@ -139,7 +139,51 @@ async function fetchAllMessages(){if(!config||!config.pluginId)return [];try{con
 
 function displayLastMessage(message){if(!message||!message.timestamp_utc){lastMessageCard.style.display='none';return;}const timestamp=parseTimestampWithoutMs(message.timestamp_utc);const localTime=timestamp.toLocaleString(undefined,{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});const author=message.author||'Anonymous';lastMessageContent.innerHTML=`<div class="last-message-author">${author}</div><div class="last-message-time">${localTime}</div>`;lastMessageCard.style.display='block';}
 
-function checkCanSendBasedOnLastMessage(lastMessage){if(!lastMessage||!lastMessage.timestamp_utc)return true;const lastTimestamp=parseTimestampWithoutMs(lastMessage.timestamp_utc).getTime();const now=Date.now();const timeSinceLast=now-lastTimestamp;if(timeSinceLast<RATE_LIMIT_MS){const remainingTime=RATE_LIMIT_MS-timeSinceLast;const remainingMinutes=Math.floor(remainingTime/(60*1000));const remainingSeconds=Math.ceil((remainingTime%(60*1000))/1000);submitBtn.disabled=true;rateLimitInfo.innerHTML=`Last message was sent too recently. Please wait <span class="countdown">${remainingMinutes}:${remainingSeconds.toString().padStart(2,'0')}</span>`;const countdownInterval=setInterval(()=>{const newRemainingTime=RATE_LIMIT_MS-(Date.now()-lastTimestamp);if(newRemainingTime<=0){clearInterval(countdownInterval);submitBtn.disabled=false;rateLimitInfo.textContent=`You can send one message every ${RATE_LIMIT_MINUTES} minutes`;}else{const newRemainingMinutes=Math.floor(newRemainingTime/(60*1000));const newRemainingSeconds=Math.ceil((newRemainingTime%(60*1000))/1000);rateLimitInfo.innerHTML=`Last message was sent too recently. Please wait <span class="countdown">${newRemainingMinutes}:${newRemainingSeconds.toString().padStart(2,'0')}</span>`;}},1000);return false;}submitBtn.disabled=false;rateLimitInfo.textContent=`You can send one message every ${RATE_LIMIT_MINUTES} minutes`;return true;}
+function checkCanSendBasedOnLastMessage(lastMessage) {
+  // Clear any existing countdown
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+
+  if (!lastMessage || !lastMessage.timestamp_utc) {
+    submitBtn.disabled = false;
+    rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+    return true;
+  }
+
+  const lastTimestamp = new Date(lastMessage.timestamp_utc).getTime();
+  const now = Date.now();
+  let timeSinceLast = now - lastTimestamp;
+
+  if (timeSinceLast < RATE_LIMIT_MS) {
+    submitBtn.disabled = true;
+    updateCountdown();
+
+    countdownInterval = setInterval(updateCountdown, 1000);
+
+    function updateCountdown() {
+      const remainingTime = RATE_LIMIT_MS - (Date.now() - lastTimestamp);
+      if (remainingTime <= 0) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        submitBtn.disabled = false;
+        rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+      } else {
+        const minutes = Math.floor(remainingTime / (60 * 1000));
+        const seconds = Math.ceil((remainingTime % (60 * 1000)) / 1000);
+        rateLimitInfo.innerHTML = `Last message was sent too recently. Please wait <span class="countdown">${minutes}:${seconds.toString().padStart(2,'0')}</span>`;
+      }
+    }
+
+    return false;
+  }
+
+  // No need to wait
+  submitBtn.disabled = false;
+  rateLimitInfo.textContent = `You can send one message every ${RATE_LIMIT_MINUTES} minutes`;
+  return true;
+}
 
 async function initializeForm(){if(!config){handleInvalidConfig();return;}if(config.authorRequired){authorOptionalLabel.style.display='none';authorRequiredLabel.style.display='inline';authorInput.required=true;authorInput.placeholder='Your name is required';}if(config.messageRequired){messageOptionalLabel.style.display='none';messageRequiredLabel.style.display='inline';messageInput.required=true;messageInput.placeholder='Message is required';messageInput.maxLength=MAX_MESSAGE_LENGTH;}charCount.textContent=`0/${MAX_MESSAGE_LENGTH}`;const savedAuthor=localStorage.getItem(AUTHOR_STORAGE_KEY);if(savedAuthor){authorInput.value=savedAuthor;}lastMessageContent.innerHTML='<div class="last-message-loading">Loading last message...</div>';lastMessageCard.style.display='block';const lastMessage=await fetchLastMessage();displayLastMessage(lastMessage);checkCanSendBasedOnLastMessage(lastMessage);let sourceText='';switch(source){case 'url_encoded':sourceText='Encoded URL parameter (saved to localStorage)';break;case 'url_legacy':sourceText='Legacy URL parameter (saved to localStorage)';break;case 'localStorage':sourceText='localStorage';break;default:sourceText='unknown';}debugInfo.innerHTML=`Plugin ID: ${config.pluginId}<br>Source: <span class="plugin-source">${sourceText}</span><br>Author Required: ${config.authorRequired?'Yes':'No'}<br>Message Required: ${config.messageRequired?'Yes':'No'}<br>Max Message Length: ${MAX_MESSAGE_LENGTH}<br>Stream Limit: ${STREAM_LIMIT} messages<br>Max Total Size: ${MAX_TOTAL_SIZE} bytes`;debugInfo.style.display='block';if(source==='localStorage'){showMessage('✓ Using saved configuration from previous session','success');setTimeout(()=>{statusMessage.classList.remove('show');},3000);}}
 
