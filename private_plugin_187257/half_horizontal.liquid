@@ -15,20 +15,21 @@
         {% else %}
         <!-- Unified message section (with or without image) -->
         <div class="flex flex--row flex--center gap-10" id="messageContainer">
-          {% if first_message.image_url != blank %}
-          <img class="image image-dither rounded message-image md:w--max-32 md:h--max-32 lg:w--max-48 lg:h-max-48" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" />
-          {% endif %}
           <div class="richtext richtext--left w--full" id="textContainer">
-            <div class="content content--left text--left text-stroke" data-content-limiter="true">
+            <div class="content content--left text--left">
               {% if first_message.timestamp_utc != blank %}
-              <div class="label label--small label--underline">
-                {{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale }}
-                {% if first_message.author != blank %}<span class="author-dash">—</span> {{ first_message.author }}{% endif %}
+              <div class="text text--right text--large">
+                <strong>{{ first_message.timestamp_utc | date: '%s' | plus: trmnl.user.utc_offset | date: "%Y-%m-%dT%H:%M:%S.%LZ" | l_date: "%d %b, %H:%M", trmnl.user.locale | upcase }}
+                {% if first_message.author != blank %}<span class="text author-dash">—</span> {{ first_message.author | upcase }}{% endif %}</strong>
               </div>
               {% endif %}
               {% if first_message.message %}
-              <div class="value md:value--large" >
-              {{ first_message.message | upcase | markdown_to_html }}
+              <div class="value value--small lg:value">
+                          {% if first_message.image_url != blank %}
+          <img style="float: left" class="p--2 image image-dither image--contain rounded message-image md:w--max-56 md:h--max-56 lg:w--max-96 lg:h-max-96" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" />
+          {% endif %}
+
+              {{ first_message.message  | markdown_to_html }}
               </div>
               {% endif %}
             </div>
@@ -49,7 +50,7 @@
               {% if second_message.author != blank %}<span class="author-dash">—</span> {{ second_message.author }}{% endif %}
             </div>
 
-            <span class="description" data-clamp="3">
+            <span class="description" >
               {% if second_message.message %}
               {{ second_message.message | markdown_to_html }}
               {% else %}
@@ -67,7 +68,7 @@
         <div class="shrink-0 pr--2 h--min-24">
           {% if show_qr_code == "show" %}
           <div class="flex flex--row flex--end gap-10">
-            <div class="text text--right text--xs">{{ scan_message | markdown_to_html }}</div>
+            <div class="text text--right text--large">{{ scan_message | markdown_to_html }}</div>
             {{ full_qr_url | qr_code: 3, 'l'}}
           </div>
           {% endif %}

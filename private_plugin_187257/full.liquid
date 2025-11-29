@@ -15,9 +15,6 @@
         {% else %}
         <!-- Unified message section (with or without image) -->
         <div class="flex flex--row flex--center gap-10" id="messageContainer">
-          {% if first_message.image_url != blank %}
-          <img class="image image-dither image--contain rounded message-image md:w--max-56 md:h--max-56 lg:w--max-96 lg:h-max-96" src="{{ first_message.image_url }}" alt="Message image" id="messageImage" />
-          {% endif %}
           <div class="richtext richtext--left w--full" id="textContainer">
             <div class="content content--left text--left">
               {% if first_message.timestamp_utc != blank %}
@@ -27,8 +24,12 @@
               </div>
               {% endif %}
               {% if first_message.message %}
-              <div class="value lg:value--large" data-value-fit="true" >
-              {{ first_message.message | upcase | markdown_to_html }}
+              <div class="value value--small lg:value">
+                          {% if first_message.image_url != blank %}
+          <img style="float: left" class="mr--4 mb--2 image image-dither image--contains rounded md:w--max-56 md:h--max-56 lg:w--max-96 lg:h-max-96" src="{{ first_message.image_url }}" alt="Message image"/>
+          {% endif %}
+
+              {{ first_message.message  | markdown_to_html }}
               </div>
               {% endif %}
             </div>
@@ -77,6 +78,6 @@
   </div>
   <div class="title_bar">
     <img src="https://raw.githubusercontent.com/ExcuseMi/trmnl-leave-a-message-plugin/refs/heads/main/images/message.png" class="image image-dither" />
-    <span class="title"> Leave a message {{full_qr_url }}</span>
+    <span class="title">Leave a message {{full_qr_url}}</span>
   </div>
 {% endif %}
